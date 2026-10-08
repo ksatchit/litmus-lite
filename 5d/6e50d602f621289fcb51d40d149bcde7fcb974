@@ -1,0 +1,72 @@
+docs/cookbooks/demo-playbook.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 123
+internal/compose/merge.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 38,40-41,43,45-71
+internal/compose/k6.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-156
+internal/doctor/doctor_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-37
+examples/launchpad/README.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 12
+internal/report/html.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 49
+examples/launchpad/ignite.chaos.yaml
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 40-41
+internal/engine/engine_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 9,236-276
+internal/doctor/doctor.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 12-13,23,35-37,62-79
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 11
+examples/launchpad/ignite-load.chaos.yaml
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 41
+internal/scenario/scenario.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 66-70,118-123,188-201
+internal/compose/vegaload.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 14-18,20,22-25,31-33,35,37-49,51-52
+internal/compose/k6_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-57
+internal/compose/load.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-141
+internal/compose/command.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-61
+internal/mcp/tools.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 119-123
+internal/scenario/scenario_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 3-6,34-70
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 71
+cmd/litmus-lite/main.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 88,354,363
+docs/cookbooks/demo-playbook-vegaload.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 18,98-126
+internal/diagnose/diagnose.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 47
+AGENTS.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 25,37
+README.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 11
+internal/hosts/hosts.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 36
+docs/cookbooks/demo-playbook-cursor.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 210
+internal/engine/engine.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 18,215-216,220-223,225-234,236-237,296-299,301
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5d6e50d602f621289fcb51d40d149bcde7fcb974",
+  "prompts": {
+    "b75fd3d938983717": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "0aff4471-2e31-454a-9bfb-4fff22ac2ed3",
+        "model": "grok-4.7"
+      },
+      "human_author": "Karthik S <karthik.s@harness.io>",
+      "total_additions": 746,
+      "total_deletions": 101,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}
