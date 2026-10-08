@@ -13,3 +13,14 @@ jobs:
       - run: ./litmus-lite validate examples/launchpad/ignite.chaos.yaml
       - run: ./litmus-lite mcp eval
       - run: ./litmus-lite move-to -adapter ir examples/launchpad/ignite.chaos.yaml
+      - run: ./litmus-lite hub list
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - run: go test ./internal/faults ./internal/scenario ./internal/safety ./internal/report
+      - run: go build -o litmus-lite.exe ./cmd/litmus-lite
+      - run: ./litmus-lite.exe validate examples/launchpad/ignite.chaos.yaml

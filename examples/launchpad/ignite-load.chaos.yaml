@@ -1,0 +1,46 @@
+apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata:
+  name: launchpad-http-latency-load
+target:
+  kind: http
+  baseUrl: http://127.0.0.1:8080
+steadyState:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    expect: { status: 200 }
+    mode: SOT
+faults:
+  - name: slow-api
+    kind: http.latency
+    duration: 12s
+    params:
+      listen: "127.0.0.1:18080"
+      upstream: "127.0.0.1:8080"
+      delay: 800ms
+      jitter: 100ms
+      statusOverride: { percent: 5, code: 500 }
+probes:
+  - name: list-launches
+    type: http
+    url: http://127.0.0.1:18080/api/launches
+    interval: 200ms
+    mode: continuous
+    expect: { status: 200 }
+hypotheses:
+  - name: errors-bounded
+    metric: error_rate
+    operator: <
+    value: "15%"
+  - name: recovers
+    metric: recovery
+    operator: <=
+    value: 5s
+load:
+  scenario: ./launches.vl.js
+  args: ["-vus", "5", "-duration", "12s", "-allow-target"]
+observability:
+  prometheus:
+    url: http://127.0.0.1:9090
+rollback: always

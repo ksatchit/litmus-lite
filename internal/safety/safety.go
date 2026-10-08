@@ -25,7 +25,7 @@ func Check(s *scenario.Scenario, opt Options) error {
 		if d > max {
 			max = d
 		}
-		if strings.HasPrefix(f.Kind, "process.kill") && !opt.Yes {
+		if needsYes(f.Kind) && !opt.Yes {
 			return fmt.Errorf("fault %s (%s) requires -yes", f.Name, f.Kind)
 		}
 		if host := scenario.StringParam(f.Params, "upstream"); host != "" {
@@ -55,6 +55,15 @@ func Check(s *scenario.Scenario, opt Options) error {
 		}
 	}
 	return nil
+}
+
+func needsYes(kind string) bool {
+	switch kind {
+	case "process.kill", "disk.fill":
+		return true
+	default:
+		return false
+	}
 }
 
 func hostAllowed(raw string, allow []string) error {

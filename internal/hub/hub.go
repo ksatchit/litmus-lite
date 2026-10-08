@@ -204,6 +204,120 @@ hypotheses:
 rollback: always
 `,
 	},
+	{
+		ID: "docker.pause", Title: "Docker pause", Kind: "docker.pause", OS: []string{"linux", "darwin", "windows"},
+		Summary: "Pause a local Docker container via the docker CLI. Reversible (unpause). Skips if docker is missing.",
+		Template: `apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata:
+  name: docker-pause
+steadyState:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    expect: { status: 200 }
+faults:
+  - name: freeze-container
+    kind: docker.pause
+    duration: 8s
+    params:
+      name: launchpad-engine
+probes:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    interval: 300ms
+    expect: { status: 200 }
+hypotheses:
+  - name: recovers
+    metric: recovery
+    operator: <=
+    value: 8s
+rollback: always
+`,
+	},
+	{
+		ID: "cpu.hog", Title: "CPU hog", Kind: "cpu.hog", OS: []string{"linux", "darwin", "windows"},
+		Summary: "Burn CPU in-process with a bounded worker count (max 16).",
+		Template: `apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata:
+  name: cpu-hog
+steadyState:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    expect: { status: 200 }
+faults:
+  - name: burn
+    kind: cpu.hog
+    duration: 8s
+    params:
+      workers: 2
+probes:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    interval: 300ms
+    expect: { status: 200 }
+rollback: always
+`,
+	},
+	{
+		ID: "memory.hog", Title: "Memory hog", Kind: "memory.hog", OS: []string{"linux", "darwin", "windows"},
+		Summary: "Allocate a bounded heap block (cap 256MB) and release on rollback.",
+		Template: `apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata:
+  name: memory-hog
+steadyState:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    expect: { status: 200 }
+faults:
+  - name: eat-ram
+    kind: memory.hog
+    duration: 8s
+    params:
+      size: 32MB
+probes:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    interval: 300ms
+    expect: { status: 200 }
+rollback: always
+`,
+	},
+	{
+		ID: "disk.fill", Title: "Disk fill", Kind: "disk.fill", OS: []string{"linux", "darwin", "windows"},
+		Summary: "Write a capped file (max 256MB) then delete it. Always requires -yes.",
+		Template: `apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata:
+  name: disk-fill
+steadyState:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    expect: { status: 200 }
+faults:
+  - name: fill-tmp
+    kind: disk.fill
+    duration: 8s
+    params:
+      path: /tmp/litmus-lite-fill.bin
+      size: 16MB
+probes:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    interval: 300ms
+    expect: { status: 200 }
+rollback: always
+`,
+	},
 }
 
 func List() []Item {

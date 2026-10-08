@@ -1,0 +1,33 @@
+apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata:
+  name: launchpad-engine-pause
+target:
+  kind: process
+  baseUrl: http://127.0.0.1:8080
+steadyState:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    expect: { status: 200 }
+    mode: SOT
+faults:
+  - name: freeze-engine
+    kind: process.pause
+    duration: 8s
+    params:
+      command: engine
+probes:
+  - name: list-launches
+    type: http
+    url: http://127.0.0.1:8080/api/launches
+    interval: 300ms
+    timeout: 800ms
+    mode: continuous
+    expect: { status: 200 }
+hypotheses:
+  - name: recovers
+    metric: recovery
+    operator: <=
+    value: 8s
+rollback: always

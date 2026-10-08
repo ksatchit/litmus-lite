@@ -81,4 +81,8 @@ func init() {
 	Register(httpProxy{})
 	Register(processPause{})
 	Register(processKill{})
+	Register(dockerPause{})
+	Register(cpuHog{})
+	Register(memoryHog{})
+	Register(diskFill{})
 }

@@ -171,6 +171,7 @@ func cmdRun(args []string) int {
 	outFmt := outputFlag(fs)
 	outPath := fs.String("out", "report.json", "JSON report path")
 	htmlPath := fs.String("html", "report.html", "HTML report path")
+	junitPath := fs.String("junit", "", "optional JUnit XML path")
 	allow := fs.String("allow-target", "", "comma-separated extra hosts")
 	yes := fs.Bool("yes", false, "allow long/destructive runs")
 	if err := fs.Parse(args); err != nil {
@@ -202,6 +203,9 @@ func cmdRun(args []string) int {
 	}
 	_ = report.WriteJSON(*outPath, res)
 	_ = report.WriteHTML(*htmlPath, res)
+	if *junitPath != "" {
+		_ = report.WriteJUnit(*junitPath, res)
+	}
 	passed := res.Passed
 	audit.Append(audit.Line{Command: "run", File: file, Passed: &passed})
 	if *outFmt == "json" {

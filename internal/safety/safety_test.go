@@ -103,3 +103,29 @@ probes:
 		t.Fatal(err)
 	}
 }
+
+func TestDiskFillRequiresYes(t *testing.T) {
+	s, err := scenario.Parse([]byte(`
+apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata: { name: t }
+faults:
+  - name: d
+    kind: disk.fill
+    duration: 2s
+    params: { size: 1MB }
+probes:
+  - name: p
+    type: http
+    url: http://127.0.0.1:1/
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Check(s, Options{}); err == nil {
+		t.Fatal("disk.fill requires -yes")
+	}
+	if err := Check(s, Options{Yes: true}); err != nil {
+		t.Fatal(err)
+	}
+}

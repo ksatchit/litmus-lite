@@ -8,7 +8,7 @@ Apache-2.0. Intended home: `github.com/litmuschaos/litmus-lite`.
 
 ## Status
 
-Phase 0 is runnable: HTTP-proxy faults, `process.kill` (`-yes`), probes, hypotheses, overlay HTML/JSON, ChaosHub import (embedded, plus optional git pin), CLI ≡ MCP, VegaLoad compose (exec), optional Prometheus, generic `move-to` IR and Litmus 4.0 file adapter (`-adapter harness` still stubbed).
+Mode A Phase 0–2 is runnable: HTTP-proxy faults, process pause/kill, docker.pause, cpu/memory hog, disk.fill (capped, `-yes`), overlay HTML/JSON, optional JUnit, ChaosHub (embedded + git pin), CLI ≡ MCP, VegaLoad compose, optional Prom, `move-to` IR and Litmus 4.0 file adapter (`-adapter harness` still stubbed). Demo: [terminal](docs/cookbooks/demo-playbook.md) · [Cursor-first](docs/cookbooks/demo-playbook-cursor.md) · [VegaLoad](docs/cookbooks/demo-playbook-vegaload.md).
 
 ## Install
 
