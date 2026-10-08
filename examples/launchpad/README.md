@@ -10,7 +10,7 @@ Walkthroughs: [terminal](../../docs/cookbooks/demo-playbook.md) · [Cursor-first
 | --- | --- |
 | `ignite.chaos.yaml` | HTTP proxy latency + 5% 500s on `:18080` (chaos only) |
 | `ignite-load.chaos.yaml` | Same fault + VegaLoad VUs on the proxy (`launches.vl.js`) |
-| `pause-engine.chaos.yaml` | SIGSTOP the `engine` process; list-launches should suffer |
+| `pause-engine.chaos.yaml` | SIGSTOP the `engine` process; `/api/engine/status` should suffer |
 | `launches.vl.js` | VegaLoad script; must hit `:18080`, not `:8080` |
 
 ## Short path

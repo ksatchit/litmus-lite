@@ -18,9 +18,9 @@ faults:
     params:
       command: engine
 probes:
-  - name: list-launches
+  - name: engine-status
     type: http
-    url: http://127.0.0.1:8080/api/launches
+    url: http://127.0.0.1:8080/api/engine/status
     interval: 300ms
     timeout: 800ms
     mode: continuous

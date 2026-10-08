@@ -34,8 +34,8 @@ Read this once. In the room, name the intent in one sentence before the agent ru
 | | |
 | --- | --- |
 | **Intent** | Prove what happens when the **dependency process** stops making progress (not the HTTP hop). Missioncontrol should show the outage; it should recover when the process is continued. |
-| **How** | SIGSTOP the process whose command matches `engine` for 8s, then SIGCONT. Probes hit `:8080` (no proxy). Probe timeout 800ms so a hung gRPC dial becomes a failed sample, not a wedged CLI. |
-| **Expect** | SOT healthz passes. During inject, `/api/launches` availability drops and/or latency blows the timeout. After 8s, samples succeed again; `recovery <= 8s`. |
+| **How** | SIGSTOP the process whose command matches `engine` for 8s, then SIGCONT. Probes hit `:8080` `/api/engine/status` (not `/api/launches`, which is in-process). Probe timeout 800ms so a hung gRPC call becomes a failed sample. |
+| **Expect** | SOT healthz passes. During inject, engine-status availability drops (502 or timeout). After 8s, samples succeed again; `recovery <= 8s`. |
 | **Fail looks like** | Wrong PID paused (Cursor / another `go run`). Abort and `kill -CONT` that pid. Do not “just kill it.” |
 
 ### Hub: `http.latency`
@@ -178,7 +178,7 @@ Optional: split the editor and run `./litmus-lite hub list` in the terminal. Sam
 
 **Paste:**
 
-> The LaunchPad engine process is on this machine (command contains `engine`, or I will give you a pid). Write or use `examples/launchpad/pause-engine.chaos.yaml`. Validate. Run it. Explain the overlay: I expect list-launches to fail or time out while the engine is SIGSTOP’d, then recover after SIGCONT. Do not use process.kill. Do not pass -yes.
+> The LaunchPad engine process is on this machine (command contains `engine`, or I will give you a pid). Write or use `examples/launchpad/pause-engine.chaos.yaml`. Validate. Run it. Explain the overlay: I expect GET /api/engine/status to fail or time out while the engine is SIGSTOP’d, then recover after SIGCONT. Do not probe /api/launches for this (it does not call engine). Do not use process.kill. Do not pass -yes.
 
 **Intent / expect:** see `pause-engine` in the catalog.
 

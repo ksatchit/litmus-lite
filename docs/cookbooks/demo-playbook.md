@@ -80,7 +80,7 @@ Show that `mcp eval` exercises real CLI tools, and that import wrote a real file
 
 ## 4. Beat C — process.pause on engine (Phase 2, required)
 
-**Intent:** engine process stops progressing. **Expect:** list-launches fails/times out, then recovers after SIGCONT.
+**Intent:** engine process stops progressing. **Expect:** `/api/engine/status` fails/times out, then recovers after SIGCONT.
 
 Confirm the engine process name (often `engine` when run as `go run ./cmd/engine`):
 
@@ -98,7 +98,7 @@ open report.html
 What must be true:
 
 - SOT `healthz` passes (engine is up).
-- During inject, list-launches availability drops or latency spikes (engine is SIGSTOP’d; missioncontrol cannot complete ignite).
+- During inject, `/api/engine/status` fails or times out (engine is SIGSTOP’d). `GET /api/launches` stays 200 — it does not call engine.
 - After 8s, SIGCONT; recovery hypothesis passes.
 - No `-yes` (pause is reversible). Do **not** run `process.kill` in the demo unless you have a disposable engine you can restart.
 
