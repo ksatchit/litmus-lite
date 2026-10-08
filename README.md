@@ -8,7 +8,7 @@ Apache-2.0. Intended home: `github.com/litmuschaos/litmus-lite`.
 
 ## Status
 
-Phase 0 is runnable: HTTP-proxy faults, probes, hypotheses, overlay HTML/JSON, ChaosHub import (embedded, plus optional git pin), CLI ≡ MCP, VegaLoad compose (exec), optional Prometheus, generic `move-to` IR and Litmus 4.0 file adapter (`-adapter harness` still stubbed).
+Phase 0 is runnable: HTTP-proxy faults, `process.kill` (`-yes`), probes, hypotheses, overlay HTML/JSON, ChaosHub import (embedded, plus optional git pin), CLI ≡ MCP, VegaLoad compose (exec), optional Prometheus, generic `move-to` IR and Litmus 4.0 file adapter (`-adapter harness` still stubbed).
 
 ## Install
 

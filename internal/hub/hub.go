@@ -171,6 +171,39 @@ hypotheses:
 rollback: always
 `,
 	},
+	{
+		ID: "process.kill", Title: "Process kill", Kind: "process.kill", OS: []string{"linux", "darwin"},
+		Summary: "SIGTERM then SIGKILL a local process. Always requires -yes (not supported on Windows).",
+		Template: `apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata:
+  name: process-kill
+steadyState:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    expect: { status: 200 }
+faults:
+  - name: stop-engine
+    kind: process.kill
+    duration: 8s
+    params:
+      command: engine
+      sigkillAfter: 2s
+probes:
+  - name: engine-status
+    type: http
+    url: http://127.0.0.1:8080/api/engine/status
+    interval: 300ms
+    expect: { status: 200 }
+hypotheses:
+  - name: recovers
+    metric: recovery
+    operator: <=
+    value: 8s
+rollback: always
+`,
+	},
 }
 
 func List() []Item {

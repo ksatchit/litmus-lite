@@ -3,6 +3,7 @@ package hub
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -21,6 +22,21 @@ func TestImport(t *testing.T) {
 	}
 	if len(b) < 50 {
 		t.Fatal("template")
+	}
+}
+
+func TestImportProcessKill(t *testing.T) {
+	dir := t.TempDir()
+	p, err := Import("process.kill", dir, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "kind: process.kill") {
+		t.Fatal(string(b))
 	}
 }
 

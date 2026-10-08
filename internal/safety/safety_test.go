@@ -77,3 +77,29 @@ probes:
 		t.Fatal(err)
 	}
 }
+
+func TestProcessKillRequiresYes(t *testing.T) {
+	s, err := scenario.Parse([]byte(`
+apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata: { name: t }
+faults:
+  - name: k
+    kind: process.kill
+    duration: 2s
+    params: { pid: 1234 }
+probes:
+  - name: p
+    type: http
+    url: http://127.0.0.1:1/
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Check(s, Options{}); err == nil {
+		t.Fatal("process.kill requires -yes")
+	}
+	if err := Check(s, Options{Yes: true}); err != nil {
+		t.Fatal(err)
+	}
+}

@@ -52,7 +52,7 @@ If a proposed change breaks any of these, stop and flag it.
 - `litmus-lite validate FILE`
 - `litmus-lite run FILE` — `-out`, `-allow-target`, `-yes`, `-output json`
 - `litmus-lite diagnose FILE.json`
-- `litmus-lite hub list` / `hub import ID -beside DIR` — embedded catalog; optional `.litmus-lite/hub.lock` adds a git pin (embedded IDs win)
+- `litmus-lite hub list` / `hub import ID -beside DIR` — embedded catalog (includes `process.kill`); optional `.litmus-lite/hub.lock` adds a git pin (embedded IDs win)
 - `litmus-lite init` / `doctor` / `mcp serve` / `mcp eval` (fixtures exec the CLI)
 - `litmus-lite compare BASE CAND`
 - `litmus-lite move-to -adapter ir|litmus`
