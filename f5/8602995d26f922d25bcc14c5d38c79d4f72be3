@@ -1,0 +1,46 @@
+internal/moveto/litmus/litmus_test.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 1-113
+internal/moveto/ir_test.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 36-38,42,44
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 43
+AGENTS.md
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 34,55,58
+internal/moveto/ir.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 37-45,72-76,89-90,93,95-96
+README.md
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 11,45-46
+internal/hub/hub.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 16,176-183,188,198,211-214,216
+internal/hub/remote.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 1-156
+internal/hub/remote_test.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 1-197
+internal/hosts/hosts.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 9-19
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 20
+cmd/litmus-lite/main.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 23,91,258-259,262-266,268,270-271,276-280,290,302,426,431,440-464
+internal/hub/catalog.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 1-118
+internal/moveto/litmus/litmus.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 1-137
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f58602995d26f922d25bcc14c5d38c79d4f72be3",
+  "prompts": {
+    "fe8f14abd1484a66": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "c292bb84-b4c5-4933-9dff-644fbf268a8b",
+        "model": "grok-4.6"
+      },
+      "human_author": "Karthik S <karthik.s@harness.io>",
+      "total_additions": 845,
+      "total_deletions": 52,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}
