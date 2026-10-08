@@ -13,6 +13,7 @@ type Item struct {
 	Kind     string   `json:"kind"`
 	OS       []string `json:"os"`
 	Summary  string   `json:"summary"`
+	Source   string   `json:"source,omitempty"`
 	Template string   `json:"-"`
 }
 
@@ -172,11 +173,19 @@ rollback: always
 	},
 }
 
-func List() []Item { return catalog }
+func List() []Item {
+	out := make([]Item, len(catalog))
+	for i, it := range catalog {
+		it.Source = "embedded"
+		out[i] = it
+	}
+	return out
+}
 
 func Get(id string) (Item, error) {
 	for _, it := range catalog {
 		if it.ID == id {
+			it.Source = "embedded"
 			return it, nil
 		}
 	}
@@ -186,7 +195,7 @@ func Get(id string) (Item, error) {
 func Search(q string) []Item {
 	q = strings.ToLower(q)
 	var out []Item
-	for _, it := range catalog {
+	for _, it := range List() {
 		if strings.Contains(strings.ToLower(it.ID+" "+it.Title+" "+it.Kind+" "+it.Summary), q) {
 			out = append(out, it)
 		}
@@ -199,8 +208,12 @@ func Import(id, beside, name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return writeImport(it, beside, name)
+}
+
+func writeImport(it Item, beside, name string) (string, error) {
 	if name == "" {
-		name = strings.ReplaceAll(id, ".", "-")
+		name = strings.ReplaceAll(it.ID, ".", "-")
 	}
 	if !strings.HasSuffix(name, ".chaos.yaml") {
 		name += ".chaos.yaml"

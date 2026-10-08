@@ -33,7 +33,13 @@ probes:
 	if err := Push("harness", ex); err == nil {
 		t.Fatal("stub should error")
 	}
+	if !strings.Contains(Push("harness", ex).Error(), "not implemented") {
+		t.Fatal(Push("harness", ex))
+	}
 	if err := Push("ir", ex); err != nil {
+		t.Fatal(err)
+	}
+	if err := Push("litmus", ex); err != nil {
 		t.Fatal(err)
 	}
 }

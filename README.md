@@ -8,7 +8,7 @@ Apache-2.0. Intended home: `github.com/litmuschaos/litmus-lite`.
 
 ## Status
 
-Phase 0 is runnable: HTTP-proxy faults, probes, hypotheses, overlay HTML/JSON, ChaosHub import, CLI ≡ MCP, VegaLoad compose (exec), optional Prometheus, generic `move-to` IR (adapters stubbed).
+Phase 0 is runnable: HTTP-proxy faults, probes, hypotheses, overlay HTML/JSON, ChaosHub import (embedded, plus optional git pin), CLI ≡ MCP, VegaLoad compose (exec), optional Prometheus, generic `move-to` IR and Litmus 4.0 file adapter (`-adapter harness` still stubbed).
 
 ## Install
 
@@ -42,3 +42,5 @@ open report.html   # or xdg-open / start
 `new`, `validate`, `run`, `diagnose`, `hub`, `init`, `doctor`, `compare`, `mcp serve`, `mcp eval`, `move-to`, `ci github`, `export job`.
 
 Every MCP tool wraps one of these. The CLI always works alone.
+
+Optional remote hub: write `.litmus-lite/hub.lock` with `repo`, `ref`, and optional `path`. Embedded catalog IDs win on collision. No pin means no git.

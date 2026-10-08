@@ -34,11 +34,15 @@ type Fault struct {
 }
 
 type Probe struct {
-	Name   string         `json:"name"`
-	Type   string         `json:"type"`
-	Mode   string         `json:"mode"`
-	URL    string         `json:"url,omitempty"`
-	Expect map[string]any `json:"expect,omitempty"`
+	Name     string         `json:"name"`
+	Type     string         `json:"type"`
+	Mode     string         `json:"mode"`
+	URL      string         `json:"url,omitempty"`
+	Command  string         `json:"command,omitempty"`
+	Method   string         `json:"method,omitempty"`
+	Interval string         `json:"interval,omitempty"`
+	Timeout  string         `json:"timeout,omitempty"`
+	Expect   map[string]any `json:"expect,omitempty"`
 }
 
 type Hypothesis struct {
@@ -65,7 +69,11 @@ func FromScenario(s *scenario.Scenario) Experiment {
 	}
 	ex.Duration = max.String()
 	for _, p := range append(s.SteadyState, s.Probes...) {
-		ex.Probes = append(ex.Probes, Probe{Name: p.Name, Type: p.Type, Mode: p.Mode, URL: p.URL, Expect: p.Expect})
+		ex.Probes = append(ex.Probes, Probe{
+			Name: p.Name, Type: p.Type, Mode: p.Mode, URL: p.URL,
+			Command: p.Command, Method: p.Method, Interval: p.Interval, Timeout: p.Timeout,
+			Expect: p.Expect,
+		})
 	}
 	for _, h := range s.Hypotheses {
 		ex.Hypotheses = append(ex.Hypotheses, Hypothesis(h))
@@ -78,12 +86,14 @@ func JSON(ex Experiment) []byte {
 	return append(b, '\n')
 }
 
+// Push is reserved for remote adapters. The litmus adapter is a local file writer
+// (see internal/moveto/litmus). harness remains stubbed and attaches IR via the CLI.
 func Push(adapter string, ex Experiment) error {
 	switch adapter {
-	case "ir", "":
+	case "ir", "litmus", "":
 		return nil
-	case "litmus", "harness":
-		return fmt.Errorf("adapter %q is not implemented until Litmus 4.0 field names are published; IR is ready (%d faults, %d probes)", adapter, len(ex.Faults), len(ex.Probes))
+	case "harness":
+		return fmt.Errorf("adapter %q is not implemented; IR is ready (%d faults, %d probes)", adapter, len(ex.Faults), len(ex.Probes))
 	default:
 		return fmt.Errorf("unknown adapter %q", adapter)
 	}

@@ -31,7 +31,7 @@ If a proposed change breaks any of these, stop and flag it.
 - **Faults** (`internal/faults`): plugins. Adding a kind must not edit the orchestrator beyond registration.
 - **Probes** (`internal/probe`): HTTP and command.
 - **Report** (`internal/report`): JSON + HTML from a `Result` value.
-- **Hub** (`internal/hub`): embedded catalog.
+- **Hub** (`internal/hub`): embedded catalog; optional git pin via `.litmus-lite/hub.lock`.
 - **MCP** (`internal/mcp`): execs CLI, parses `-output json`. Must not call engine functions directly.
 - **Hosts / doctor** (`internal/hosts`, `internal/doctor`): `init` and `doctor` share host paths.
 - **Compose** (`internal/compose`): VegaLoad CLI exec + JSON merge.
@@ -52,10 +52,10 @@ If a proposed change breaks any of these, stop and flag it.
 - `litmus-lite validate FILE`
 - `litmus-lite run FILE` — `-out`, `-allow-target`, `-yes`, `-output json`
 - `litmus-lite diagnose FILE.json`
-- `litmus-lite hub list` / `hub import ID -beside DIR`
+- `litmus-lite hub list` / `hub import ID -beside DIR` — embedded catalog; optional `.litmus-lite/hub.lock` adds a git pin (embedded IDs win)
 - `litmus-lite init` / `doctor` / `mcp serve` / `mcp eval`
 - `litmus-lite compare BASE CAND`
-- `litmus-lite move-to -adapter ir`
+- `litmus-lite move-to -adapter ir|litmus`
 - `go test ./...`
 
 ## What not to do

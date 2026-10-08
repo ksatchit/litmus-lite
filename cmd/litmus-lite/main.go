@@ -20,6 +20,7 @@ import (
 	"github.com/ksatchit/litmus-lite/internal/k8s"
 	"github.com/ksatchit/litmus-lite/internal/mcp"
 	"github.com/ksatchit/litmus-lite/internal/moveto"
+	litmusadapter "github.com/ksatchit/litmus-lite/internal/moveto/litmus"
 	"github.com/ksatchit/litmus-lite/internal/report"
 	"github.com/ksatchit/litmus-lite/internal/safety"
 	"github.com/ksatchit/litmus-lite/internal/scenario"
@@ -87,7 +88,7 @@ Commands:
   doctor                 check CLI / hosts / target
   compare BASE CAND      phase regression
   mcp serve | mcp eval
-  move-to                emit Litmus 4.0 IR (adapters stubbed)
+  move-to                emit IR or Litmus 4.0 experiment YAML (-adapter ir|litmus)
   ci github              write a GitHub Actions workflow
   export job FILE        Kubernetes Job YAML (no CRD)
 
@@ -254,18 +255,29 @@ func cmdHub(args []string) int {
 	if err := fs.Parse(args[1:]); err != nil {
 		return 2
 	}
+	cwd, _ := os.Getwd()
+	cat := hub.Open(cwd)
 	switch sub {
 	case "list":
+		items, err := cat.List()
+		if err != nil {
+			printErr(*out, err)
+			return 1
+		}
 		if *out == "json" {
-			_ = json.NewEncoder(os.Stdout).Encode(hub.List())
+			_ = json.NewEncoder(os.Stdout).Encode(items)
 		} else {
-			for _, it := range hub.List() {
-				fmt.Printf("%s\t%s\t%s\n", it.ID, it.Kind, it.Title)
+			for _, it := range items {
+				fmt.Printf("%s\t%s\t%s\t%s\n", it.ID, it.Kind, it.Title, it.Source)
 			}
 		}
 	case "search":
 		q := fs.Arg(0)
-		items := hub.Search(q)
+		items, err := cat.Search(q)
+		if err != nil {
+			printErr(*out, err)
+			return 1
+		}
 		if *out == "json" {
 			_ = json.NewEncoder(os.Stdout).Encode(items)
 		} else {
@@ -275,7 +287,7 @@ func cmdHub(args []string) int {
 		}
 	case "show":
 		id := fs.Arg(0)
-		it, err := hub.Get(id)
+		it, err := cat.Get(id)
 		if err != nil {
 			printErr(*out, err)
 			return 1
@@ -287,7 +299,7 @@ func cmdHub(args []string) int {
 		}
 	case "import":
 		id := fs.Arg(0)
-		path, err := hub.Import(id, *beside, *name)
+		path, err := cat.Import(id, *beside, *name)
 		if err != nil {
 			printErr(*out, err)
 			return 1
@@ -411,11 +423,12 @@ func cmdMoveTo(args []string) int {
 	fs := flag.NewFlagSet("move-to", flag.ContinueOnError)
 	adapter := fs.String("adapter", "ir", "ir|litmus|harness")
 	out := outputFlag(fs)
+	outPath := fs.String("out", "", "optional file to write (stdout always)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if fs.NArg() < 1 {
-		fmt.Fprintln(os.Stderr, "move-to FILE")
+		fmt.Fprintln(os.Stderr, "move-to [-adapter ir|litmus|harness] [-output text|json] [-out FILE] FILE")
 		return 2
 	}
 	sc, err := scenario.Load(fs.Arg(0))
@@ -424,10 +437,31 @@ func cmdMoveTo(args []string) int {
 		return 1
 	}
 	ex := moveto.FromScenario(sc)
-	fmt.Print(string(moveto.JSON(ex)))
-	if err := moveto.Push(*adapter, ex); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		if *adapter != "ir" {
+	var body []byte
+	switch *adapter {
+	case "ir", "":
+		body = moveto.JSON(ex)
+	case "litmus":
+		doc := litmusadapter.FromIR(ex)
+		if *out == "json" {
+			body = litmusadapter.JSON(doc)
+		} else {
+			body = litmusadapter.YAML(doc)
+		}
+	case "harness":
+		fmt.Print(string(moveto.JSON(ex)))
+		if err := moveto.Push("harness", ex); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		}
+		return 1
+	default:
+		printErr(*out, fmt.Errorf("unknown adapter %q", *adapter))
+		return 1
+	}
+	fmt.Print(string(body))
+	if *outPath != "" {
+		if err := os.WriteFile(*outPath, body, 0o644); err != nil {
+			printErr(*out, err)
 			return 1
 		}
 	}

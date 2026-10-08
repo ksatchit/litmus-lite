@@ -6,6 +6,18 @@ import (
 	"path/filepath"
 )
 
+// Dir is the user host directory (~/.litmus-lite, or $LITMUS_LITE_HOME).
+func Dir() string {
+	if d := os.Getenv("LITMUS_LITE_HOME"); d != "" {
+		return d
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".litmus-lite")
+}
+
 const RuleBody = `---
 description: litmus-lite chaos scenarios next to application code
 globs:
