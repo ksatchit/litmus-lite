@@ -1,0 +1,84 @@
+internal/faults/phase2_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 64-122
+  s_b75fd3d9389837::t_be3b6cfcfb341b 123
+internal/hub/hub.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 144-146,177-179,297-299
+AGENTS.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 53
+internal/engine/engine_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 9-10,14,102-234
+internal/safety/safety.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 4,8-9,44-46,66-138
+internal/safety/safety_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 4-5,104-133,138-180
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 181
+cmd/litmus-lite/safety_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-114
+examples/launchpad/README.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 23-24
+internal/mcp/tools.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 62-64,75,85-95,99,101-102,104,108-109,111,113,115,117,119,121-148,151-167
+internal/diagnose/diagnose.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 23,25-34,37,40
+internal/engine/engine.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 24-31,37-45,65,68-85,91-92,125,131-136,141-142,144-153,155-162,166,175,180-183,199,263,272
+internal/faults/disk.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 5,11,34-35,44-46,48-49,52-59,61-63,93-169
+internal/report/html_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 9-20
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 21
+internal/mcp/eval_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 31-56
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 57
+internal/faults/process_unix.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 11,17,33,37,69,73,125-141,143-145,149,151,153-184,186-187,200-204,206-233,235
+cmd/litmus-lite/main.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 84,129,154-157,178,193-196,202-203,523-539
+internal/diagnose/diagnose_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-70
+README.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 11
+internal/report/result.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 283-303,307-313
+examples/launchpad/pause-engine.chaos.yaml
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1
+docs/cookbooks/demo-playbook-cursor.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 37,39,67,74,102,181,236
+internal/hosts/hosts.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 36
+internal/faults/process_unix_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 7,9-10,14,29-30,60-61,70-158
+docs/cookbooks/demo-playbook.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 91,94-96,106,108,147-148
+internal/faults/process_ps.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 12,15,17-18,21,24-29,31-38,40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "5176d7d2a5f308e81a17e0ac1af9469c5a21cbae",
+  "prompts": {
+    "b75fd3d938983717": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "0aff4471-2e31-454a-9bfb-4fff22ac2ed3",
+        "model": "grok-4.7"
+      },
+      "human_author": "Karthik S <karthik.s@harness.io>",
+      "total_additions": 1169,
+      "total_deletions": 183,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  },
+  "sessions": {
+    "s_b75fd3d9389837": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "0aff4471-2e31-454a-9bfb-4fff22ac2ed3",
+        "model": "grok-4.7"
+      },
+      "human_author": "Karthik S <karthik.s@harness.io>"
+    }
+  }
+}
