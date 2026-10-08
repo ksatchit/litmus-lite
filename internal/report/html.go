@@ -46,7 +46,7 @@ func RenderHTML(res *Result) string {
 		b.WriteString(`<section><h2>Fault vs impact</h2>`)
 		b.WriteString(overlayChart(res.TimeSeries, res.FaultLog, res.StartedAt))
 		b.WriteString(lineChart(res.TimeSeries, "avail", "Availability", "Probe success rate, 0–100%. A dip inside the inject band is impact.", func(p Point) float64 { return p.Availability * 100 }, 100, "var(--avail)"))
-		b.WriteString(lineChart(res.TimeSeries, "rps", "Throughput", "Probe samples per second, or merged VegaLoad RPS when load: ran.", func(p Point) float64 { return p.RPS }, 0, "var(--rps)"))
+		b.WriteString(lineChart(res.TimeSeries, "rps", "Throughput", "Probe samples per second, or merged load-generator RPS when load: ran.", func(p Point) float64 { return p.RPS }, 0, "var(--rps)"))
 		b.WriteString(`</section>`)
 	}
 

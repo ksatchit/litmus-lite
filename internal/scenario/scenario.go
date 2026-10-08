@@ -63,7 +63,11 @@ type Hypothesis struct {
 }
 
 type LoadSpec struct {
-	Scenario string   `yaml:"scenario" json:"scenario"`
+	// Tool is vegaload (default), k6, or command. command runs load.command
+	// and expects normalized time_series JSON on stdout.
+	Tool     string   `yaml:"tool" json:"tool,omitempty"`
+	Scenario string   `yaml:"scenario" json:"scenario,omitempty"`
+	Command  string   `yaml:"command" json:"command,omitempty"`
 	Args     []string `yaml:"args" json:"args,omitempty"`
 }
 
@@ -110,6 +114,12 @@ func (s *Scenario) Normalize() error {
 	}
 	if s.Recover == "" {
 		s.Recover = "5s"
+	}
+	if s.Load != nil {
+		s.Load.Tool = strings.ToLower(strings.TrimSpace(s.Load.Tool))
+		if s.Load.Tool == "" {
+			s.Load.Tool = "vegaload"
+		}
 	}
 	for i := range s.Probes {
 		if s.Probes[i].Mode == "" {
@@ -173,6 +183,20 @@ func (s *Scenario) Validate() error {
 		}
 		if h.Value == "" {
 			return fmt.Errorf("hypothesis %q needs value", h.Name)
+		}
+	}
+	if s.Load != nil {
+		switch s.Load.Tool {
+		case "vegaload", "k6":
+			if strings.TrimSpace(s.Load.Scenario) == "" {
+				return fmt.Errorf("load.scenario is required for tool %s", s.Load.Tool)
+			}
+		case "command":
+			if strings.TrimSpace(s.Load.Command) == "" {
+				return fmt.Errorf("load.command is required for tool command")
+			}
+		default:
+			return fmt.Errorf("unknown load tool %q (want vegaload, k6, or command)", s.Load.Tool)
 		}
 	}
 	if _, err := time.ParseDuration(s.Baseline); err != nil {

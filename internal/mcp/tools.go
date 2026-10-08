@@ -116,7 +116,11 @@ func cliArgs(name string, args map[string]any) ([]string, error) {
 	case "compare_reports":
 		return []string{"compare", "-output", "json", str("baseline", ""), str("candidate", "")}, nil
 	case "doctor":
-		return []string{"doctor", "-output", "json"}, nil
+		argv := []string{"doctor", "-output", "json"}
+		if f := str("file", ""); f != "" {
+			argv = append(argv, "-file", f)
+		}
+		return argv, nil
 	default:
 		return nil, fmt.Errorf("tool %q has no CLI equivalent", name)
 	}

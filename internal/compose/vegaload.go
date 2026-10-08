@@ -11,44 +11,45 @@ import (
 	"github.com/ksatchit/litmus-lite/internal/scenario"
 )
 
-func Run(ctx context.Context, bin, baseDir string, load *scenario.LoadSpec) (json.RawMessage, string, error) {
-	if load == nil || load.Scenario == "" {
-		return nil, "", nil
-	}
-	if bin == "" {
-		bin = "vegaload"
-	}
-	path, err := exec.LookPath(bin)
+func runVegaLoad(ctx context.Context, binOverride, baseDir string, load *scenario.LoadSpec) (Output, error) {
+	binName := "vegaload"
+	path, err := resolveBin(baseDir, binName, binOverride)
 	if err != nil {
-		return nil, "vegaload not on PATH; running chaos only", nil
+		return Output{Tool: "vegaload", Warn: "vegaload not on PATH; running chaos only"}, nil
 	}
-	scen := load.Scenario
-	if !filepath.IsAbs(scen) {
-		if baseDir != "" {
-			cand := filepath.Join(baseDir, scen)
-			if _, err := os.Stat(cand); err == nil {
-				scen = cand
-			}
-		}
+	scen, err := resolveScenario(baseDir, load.Scenario)
+	if err != nil {
+		return Output{}, err
 	}
-	outFile := filepath.Join(os.TempDir(), fmt.Sprintf("litmus-lite-load-%d.json", os.Getpid()))
+	outFile := filepath.Join(os.TempDir(), fmt.Sprintf("litmus-lite-vegaload-%d.json", os.Getpid()))
+	defer os.Remove(outFile)
 	args := []string{"run", "-output", "json", "-out", outFile}
 	args = append(args, load.Args...)
 	args = append(args, scen)
 	cmd := exec.CommandContext(ctx, path, args...)
 	b, err := cmd.CombinedOutput()
-	if err != nil {
-		return nil, "", fmt.Errorf("%w: %s", err, truncate(string(b), 400))
+	raw, readErr := os.ReadFile(outFile)
+	if readErr != nil {
+		raw = b
 	}
-	raw, err := os.ReadFile(outFile)
+	out := Output{Tool: "vegaload", Raw: asRaw(raw)}
 	if err != nil {
-		// some vegaload versions print JSON on stdout
-		if json.Valid(b) {
-			return json.RawMessage(b), "", nil
-		}
-		return json.RawMessage(b), "vegaload ran but -out file missing; using stdout", nil
+		return out, fmt.Errorf("%w: %s", err, truncate(string(b), 400))
 	}
-	return json.RawMessage(raw), "", nil
+	if readErr != nil && !json.Valid(b) {
+		out.Warn = "vegaload ran but -out file missing; using stdout"
+	}
+	pts, perr := seriesFromVegaLoad(out.Raw)
+	if perr != nil {
+		out.Warn = perr.Error()
+		return out, nil
+	}
+	if len(pts) == 0 {
+		out.Warn = "vegaload JSON has no time_series"
+		return out, nil
+	}
+	out.Series = pts
+	return out, nil
 }
 
 func truncate(s string, n int) string {

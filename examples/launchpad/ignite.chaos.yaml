@@ -37,7 +37,8 @@ hypotheses:
     metric: recovery
     operator: <=
     value: 5s
-# Uncomment when vegaload is on PATH and launches.vl.js is pointed at the proxy:
+# Uncomment when a load generator is on PATH and launches.vl.js is pointed at the proxy.
+# tool defaults to vegaload. Use tool: k6 or tool: command for another generator.
 # load:
 #   scenario: ./examples/launchpad/launches.vl.js
 #   args: ["-vus", "5", "-duration", "12s"]

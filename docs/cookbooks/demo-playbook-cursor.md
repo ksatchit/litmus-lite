@@ -207,7 +207,7 @@ After Beat A, rename `report.json` → `baseline.json` (or ask the agent to). Af
 
 **Intent:** stall vs delay — timeouts, not slowness. **Expect:** file on disk, `kind: http.timeout`, probes on `listen`.
 
-**VegaLoad (only if `vegaload` is on PATH and you rehearsed):** see [`demo-playbook-vegaload.md`](demo-playbook-vegaload.md). Prompt:
+**VegaLoad (only if `vegaload` is on PATH and you rehearsed):** see [`demo-playbook-vegaload.md`](demo-playbook-vegaload.md). That file’s `load:` block omits `tool`, which means `vegaload`. k6 and `command` are documented there and are not this beat. Prompt:
 
 > Validate and run `examples/launchpad/ignite-load.chaos.yaml`. Same `run_test` tool. Diagnose p95 vs 800ms and whether load RPS landed on the overlay.
 

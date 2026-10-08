@@ -15,7 +15,7 @@ Do not lead the meeting with this beat. If VegaLoad is missing, chaos-only still
 | | |
 | --- | --- |
 | **Intent** | Same slow/flaky HTTP hop as ignite, **plus** synthetic users so the overlay shows load RPS under the fault band. Proves composition: no third `*.rt.yaml`, no separate “resilience” MCP tool. |
-| **How** | Identical proxy (`:18080` → `:8080`, 800ms, 5% 500s, 12s). `load.scenario` points at `launches.vl.js`. `litmus-lite run` execs `vegaload` from PATH (not a library). VUs GET `/healthz` and `/api/launches` on **`:18080`**. Load JSON RPS/error rate is merged onto the chaos timeseries at inject offset. |
+| **How** | Identical proxy (`:18080` → `:8080`, 800ms, 5% 500s, 12s). `load.scenario` points at `launches.vl.js`. `tool` is omitted, so the run execs `vegaload` from PATH (not a library). VUs GET `/healthz` and `/api/launches` on **`:18080`**. Load RPS and error rate are merged onto the chaos timeseries at inject offset. Probe p95 stays the latency signal. |
 | **Expect** | Chaos hypotheses still pass (errors under 15%, recover ≤ 5s). HTML shows probe p95 tracking delay **and** a throughput line during inject (VegaLoad RPS). `report.json` has a `load` blob. Prom still optional. |
 | **Fail looks like** | Warning `vegaload not on PATH; running chaos only` — you are back on Beat A; do not pretend load landed. Or healthy RPS on `:8080` while p95 is flat — VUs missed the proxy. Or vegaload refused a non-allowlisted host — keep `-allow-target` and loopback. |
 
@@ -95,7 +95,35 @@ Copy `report.json` if you will `compare` against a chaos-only baseline — say �
 
 ---
 
-## 5. Reset
+## 5. Other generators (not this beat)
+
+`load.tool` selects the CLI. Omit it and the file stays a VegaLoad run. Chaos still runs if that binary is missing. `doctor -file FILE` checks the tool that file names; `doctor` with no file still reports whether `vegaload` is on PATH.
+
+k6. The adapter adds `--out json=<file>` and buckets `http_reqs` / `http_req_failed` into one-second RPS and error rate. Point the script at the proxy.
+
+```yaml
+load:
+  tool: k6
+  scenario: ./script.js
+  args: ["--vus", "5", "--duration", "12s"]
+```
+
+An internal tool. `command` is the executable. Optional `scenario` is appended as the last argument. Stdout must be only this JSON:
+
+```yaml
+load:
+  tool: command
+  command: ./scripts/our-load
+  args: ["--rps", "50", "--duration", "12s"]
+```
+
+```json
+{"time_series":[{"offset_s":0,"rps":10,"error_rate":0.01}]}
+```
+
+`offset_s` is seconds from when the generator started. Do not import the tool as a Go library. Do not add a second MCP run tool.
+
+## 6. Reset
 
 ```
 rm -f report.json report.html

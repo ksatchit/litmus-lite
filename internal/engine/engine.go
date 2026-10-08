@@ -15,7 +15,7 @@ import (
 )
 
 type Options struct {
-	LoadBin     string // vegaload path; empty = look up PATH
+	LoadBin     string // optional executable override for load.tool
 	ScenarioDir string // directory of the *.chaos.yaml, for relative load: paths
 }
 
@@ -212,26 +212,29 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 	}
 
 	var loadWG sync.WaitGroup
-	if sc.Load != nil && sc.Load.Scenario != "" {
+	var loadSeries []compose.LoadPoint
+	if compose.Active(sc.Load) {
 		loadWG.Add(1)
 		go func() {
 			defer loadWG.Done()
-			raw, warn, err := compose.Run(ctx, opt.LoadBin, opt.ScenarioDir, sc.Load)
-			if warn != "" {
-				mu.Lock()
-				res.Warnings = append(res.Warnings, warn)
-				mu.Unlock()
+			out, err := compose.Run(ctx, opt.LoadBin, opt.ScenarioDir, sc.Load)
+			label := out.Tool
+			if label == "" {
+				label = "load"
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			if out.Warn != "" {
+				res.Warnings = append(res.Warnings, out.Warn)
+			}
+			if len(out.Raw) > 0 {
+				res.Load = out.Raw
+			}
+			if len(out.Series) > 0 {
+				loadSeries = out.Series
 			}
 			if err != nil {
-				mu.Lock()
-				res.Warnings = append(res.Warnings, "vegaload: "+err.Error())
-				mu.Unlock()
-				return
-			}
-			if raw != nil {
-				mu.Lock()
-				res.Load = raw
-				mu.Unlock()
+				res.Warnings = append(res.Warnings, label+": "+err.Error())
 			}
 		}()
 	}
@@ -290,9 +293,12 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 	res.Phases = []report.Phase{phSteady, phInject, phRec}
 	res.Recovery = report.RecoveryTime(res.Probes, injectEnd)
 	res.TimeSeries = report.BucketSeries(res.StartedAt, res.Probes, events, recoverEnd)
-	if len(res.Load) > 0 {
+	mu.Lock()
+	series := append([]compose.LoadPoint(nil), loadSeries...)
+	mu.Unlock()
+	if len(series) > 0 {
 		shift := injectStart.Sub(res.StartedAt).Seconds()
-		res.TimeSeries = compose.MergeSeries(res.TimeSeries, res.Load, shift)
+		res.TimeSeries = compose.MergePoints(res.TimeSeries, series, shift)
 	}
 	res.ObservedVsInjected = report.ObservedVsInjected(events, phInject)
 

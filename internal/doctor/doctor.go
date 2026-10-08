@@ -8,6 +8,9 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
+
+	"github.com/ksatchit/litmus-lite/internal/compose"
+	"github.com/ksatchit/litmus-lite/internal/scenario"
 )
 
 type Check struct {
@@ -17,7 +20,7 @@ type Check struct {
 	Message string `json:"message"`
 }
 
-func Run(target string) []Check {
+func Run(target, scenarioFile string) []Check {
 	var out []Check
 	if _, err := os.Executable(); err != nil {
 		out = append(out, Check{"binary", false, "fail", err.Error()})
@@ -29,7 +32,9 @@ func Run(target string) []Check {
 	} else {
 		out = append(out, Check{"PATH", true, "ok", p})
 	}
-	if _, err := exec.LookPath("vegaload"); err != nil {
+	if scenarioFile != "" {
+		out = append(out, loadCheck(scenarioFile))
+	} else if _, err := exec.LookPath("vegaload"); err != nil {
 		out = append(out, Check{"vegaload", true, "warn", "vegaload not on PATH; load: blocks will run chaos only"})
 	} else {
 		out = append(out, Check{"vegaload", true, "ok", "vegaload found"})
@@ -52,6 +57,24 @@ func Run(target string) []Check {
 		}
 	}
 	return out
+}
+
+func loadCheck(path string) Check {
+	sc, err := scenario.Load(path)
+	if err != nil {
+		return Check{"load", false, "fail", err.Error()}
+	}
+	if sc.Load == nil {
+		return Check{"load", true, "ok", "no load block"}
+	}
+	name, message, found := compose.BinaryStatus(filepath.Dir(path), sc.Load)
+	if name == "" {
+		name = "load"
+	}
+	if !found {
+		return Check{name, true, "warn", message}
+	}
+	return Check{name, true, "ok", message}
 }
 
 func JSON(checks []Check) []byte {

@@ -22,7 +22,7 @@ If a proposed change breaks any of these, stop and flag it.
 
 - Core: Go. Single static binary. Cross-compiles to Linux, macOS, Windows.
 - Scenarios: YAML (`*.chaos.yaml`). Do not introduce JavaScript as the primary chaos authoring format.
-- VegaLoad composition execs the `vegaload` binary; do not import VegaLoad as a library.
+- Load composition execs an external generator. `load.tool` is `vegaload` (default), `k6`, or `command`. Do not import a generator as a library.
 - MCP is Go, subcommand `litmus-lite mcp serve`, not a separate Node process.
 
 ## Module boundaries
@@ -34,7 +34,7 @@ If a proposed change breaks any of these, stop and flag it.
 - **Hub** (`internal/hub`): embedded catalog; optional git pin via `.litmus-lite/hub.lock`.
 - **MCP** (`internal/mcp`): execs CLI, parses `-output json`. Must not call engine functions directly.
 - **Hosts / doctor** (`internal/hosts`, `internal/doctor`): `init` and `doctor` share host paths.
-- **Compose** (`internal/compose`): VegaLoad CLI exec + JSON merge.
+- **Compose** (`internal/compose`): load-generator CLI exec + normalized series merge (`vegaload`, `k6`, `command`).
 - **move-to** (`internal/moveto`): IR and adapters. Core engine has zero awareness of Litmus SaaS or Harness.
 
 ## Conventions

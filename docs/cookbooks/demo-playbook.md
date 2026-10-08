@@ -120,7 +120,7 @@ Talk to the phase table (steady / inject / recover), not a single score.
 
 ## 6. Optional beats (only if time and tools are already installed)
 
-**VegaLoad:** stop here and switch to [`demo-playbook-vegaload.md`](demo-playbook-vegaload.md) (`ignite-load.chaos.yaml`). Do not uncomment `load:` on the chaos-only ignite file on stage.
+**VegaLoad:** stop here and switch to [`demo-playbook-vegaload.md`](demo-playbook-vegaload.md) (`ignite-load.chaos.yaml`). `load.tool` defaults to `vegaload`. The same block accepts `tool: k6` or `tool: command` (see that playbook); do not switch tools on stage. Do not uncomment `load:` on the chaos-only ignite file.
 
 **move-to:** `./litmus-lite move-to -adapter litmus examples/launchpad/ignite.chaos.yaml` — show YAML, note there is no ChaosEngine string. `-adapter ir` is the vendor-neutral JSON.
 

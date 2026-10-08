@@ -44,7 +44,7 @@ func Text(res *report.Result) string {
 		}
 	}
 	if len(res.Load) > 0 {
-		fmt.Fprintf(&b, "VegaLoad JSON was merged into the overlay (RPS and error rate from time_series; probe p95 kept for latency).\n")
+		fmt.Fprintf(&b, "Load JSON was merged into the overlay (RPS and error rate from the generator; probe p95 kept for latency).\n")
 	}
 	for _, w := range res.Warnings {
 		fmt.Fprintf(&b, "Warning: %s\n", w)

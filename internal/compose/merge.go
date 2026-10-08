@@ -35,28 +35,46 @@ func Parse(raw json.RawMessage) (VegaLoadResult, error) {
 	return v, err
 }
 
-// MergeSeries copies VegaLoad per-second RPS and error rate onto dst.
-// shiftS is seconds from the chaos run start until vegaload started (typically inject).
-// VegaLoad does not emit per-second p95; overall latency.p95_ns is applied only
-// to buckets that have no probe p95 yet.
-func MergeSeries(dst []report.Point, raw json.RawMessage, shiftS float64) []report.Point {
+func seriesFromVegaLoad(raw json.RawMessage) ([]LoadPoint, error) {
 	vl, err := Parse(raw)
-	if err != nil || len(vl.TimeSeries) == 0 || len(dst) == 0 {
+	if err != nil {
+		return nil, err
+	}
+	pts := make([]LoadPoint, 0, len(vl.TimeSeries))
+	for _, lp := range vl.TimeSeries {
+		pts = append(pts, LoadPoint{
+			OffsetS:   float64(lp.OffsetNs) / 1e9,
+			RPS:       lp.RPS,
+			ErrorRate: lp.ErrorRate,
+		})
+	}
+	return pts, nil
+}
+
+// MergeSeries copies a VegaLoad time_series onto dst. shiftS is seconds from
+// the chaos run start until the generator started (typically inject).
+// Probe p95 is left as the latency signal.
+func MergeSeries(dst []report.Point, raw json.RawMessage, shiftS float64) []report.Point {
+	pts, err := seriesFromVegaLoad(raw)
+	if err != nil || len(pts) == 0 || len(dst) == 0 {
 		return dst
 	}
-	p95ms := float64(vl.Latency.P95Ns) / 1e6
-	for _, lp := range vl.TimeSeries {
-		t := shiftS + float64(lp.OffsetNs)/1e9
-		idx := nearest(dst, t)
+	return MergePoints(dst, pts, shiftS)
+}
+
+// MergePoints copies normalized per-second RPS and error rate onto dst.
+func MergePoints(dst []report.Point, pts []LoadPoint, shiftS float64) []report.Point {
+	if len(pts) == 0 || len(dst) == 0 {
+		return dst
+	}
+	for _, lp := range pts {
+		idx := nearest(dst, shiftS+lp.OffsetS)
 		if idx < 0 {
 			continue
 		}
 		dst[idx].RPS = lp.RPS
 		dst[idx].ErrorRate = lp.ErrorRate
 		dst[idx].Availability = 1 - lp.ErrorRate
-		if dst[idx].P95Ms == 0 && p95ms > 0 {
-			dst[idx].P95Ms = p95ms
-		}
 	}
 	return dst
 }

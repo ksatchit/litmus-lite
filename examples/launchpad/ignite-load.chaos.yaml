@@ -38,6 +38,7 @@ hypotheses:
     operator: <=
     value: 5s
 load:
+  # tool defaults to vegaload. k6 and command are the other generators.
   scenario: ./launches.vl.js
   args: ["-vus", "5", "-duration", "12s", "-allow-target"]
 observability:

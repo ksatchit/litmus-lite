@@ -6,6 +6,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -230,6 +231,47 @@ func (f *fakeRun) Stop() error {
 
 func init() {
 	faults.Register(scriptedFault{})
+}
+
+func TestLoadHelperProcess(t *testing.T) {
+	if os.Getenv("LITMUS_LITE_LOAD_HELPER") != "1" {
+		return
+	}
+	fmt.Print(`{"time_series":[{"offset_s":0,"rps":12.5,"error_rate":0.25}]}`)
+	os.Exit(0)
+}
+
+func TestLoadCommandMergesRPS(t *testing.T) {
+	t.Setenv("LITMUS_LITE_LOAD_HELPER", "1")
+	scriptedStart = func(scenario.Fault) (faults.Running, error) {
+		return &fakeRun{}, nil
+	}
+	sc := &scenario.Scenario{
+		Metadata: scenario.Metadata{Name: "load"},
+		Baseline: "15ms",
+		Recover:  "15ms",
+		Faults: []scenario.Fault{{
+			Name: "a", Kind: "test.scripted", Duration: "40ms",
+		}},
+		Load: &scenario.LoadSpec{
+			Tool:    "command",
+			Command: os.Args[0],
+			Args:    []string{"-test.run=^TestLoadHelperProcess$"},
+		},
+	}
+	res, err := Run(context.Background(), sc, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.Warnings) > 0 {
+		t.Fatalf("warnings %v", res.Warnings)
+	}
+	for _, p := range res.TimeSeries {
+		if p.RPS == 12.5 && p.ErrorRate == 0.25 {
+			return
+		}
+	}
+	t.Fatalf("load series missing from %+v", res.TimeSeries)
 }
 
 func TestHypothesisFail(t *testing.T) {

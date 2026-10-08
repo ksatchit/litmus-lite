@@ -85,7 +85,7 @@ Commands:
   diagnose FILE.json     explain a report
   hub list|search|show|import
   init                   register MCP + Cursor rules
-  doctor                 check CLI / hosts / target
+  doctor                 check CLI / hosts / target (-file FILE)
   compare BASE CAND      phase regression
   mcp serve | mcp eval
   move-to                emit IR or Litmus 4.0 experiment YAML (-adapter ir|litmus)
@@ -351,6 +351,7 @@ func cmdInit(args []string) int {
 func cmdDoctor(args []string) int {
 	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	target := fs.String("target", "", "optional HTTP URL")
+	file := fs.String("file", "", "optional scenario; check its load tool")
 	fix := fs.Bool("fix", false, "write missing Cursor MCP/rules files")
 	out := outputFlag(fs)
 	if err := fs.Parse(args); err != nil {
@@ -359,7 +360,7 @@ func cmdDoctor(args []string) int {
 	if *fix {
 		return cmdInit([]string{"-editor", "cursor"})
 	}
-	checks := doctor.Run(*target)
+	checks := doctor.Run(*target, *file)
 	if *out == "json" {
 		fmt.Println(string(doctor.JSON(checks)))
 	} else {
