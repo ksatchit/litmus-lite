@@ -1,0 +1,52 @@
+internal/diagnose/diagnose.go
+  e601da22-9d41-42bc-9488-048e7bdb70de 45-47
+internal/faults/fault.go
+  e601da22-9d41-42bc-9488-048e7bdb70de 25-36
+internal/engine/engine.go
+  e601da22-9d41-42bc-9488-048e7bdb70de 18-19,64-68,77-84,89-141,144,147-155,162,193-201,236-239
+internal/faults/httpproxy.go
+  s_d2ab68e83be70a::t_2a9cc18adcd69b 21-23
+  e601da22-9d41-42bc-9488-048e7bdb70de 13,44-46,56-58,106-113,117-125,127-136,153-173,175-187
+internal/faults/httpproxy_test.go
+  e601da22-9d41-42bc-9488-048e7bdb70de 15-25,61-90
+internal/compose/vegaload.go
+  e601da22-9d41-42bc-9488-048e7bdb70de 14,25-33,37
+internal/compose/merge.go
+  s_d2ab68e83be70a::t_8cd9b6ec64d568 12-16
+  e601da22-9d41-42bc-9488-048e7bdb70de 1-11,17-78
+internal/compose/merge_test.go
+  e601da22-9d41-42bc-9488-048e7bdb70de 1-46
+examples/launchpad/launches.vl.js
+  e601da22-9d41-42bc-9488-048e7bdb70de 1-2,4-5
+cmd/litmus-lite/main.go
+  e601da22-9d41-42bc-9488-048e7bdb70de 196
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "d71a66a4ccc0524708d198a1ee486022d0885fa7",
+  "prompts": {
+    "d2ab68e83be70aa7": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "e601da22-9d41-42bc-9488-048e7bdb70de",
+        "model": "grok-4.6"
+      },
+      "human_author": "Karthik S <karthik.s@harness.io>",
+      "total_additions": 370,
+      "total_deletions": 118,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  },
+  "sessions": {
+    "s_d2ab68e83be70a": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "e601da22-9d41-42bc-9488-048e7bdb70de",
+        "model": "grok-4.6"
+      },
+      "human_author": "Karthik S <karthik.s@harness.io>"
+    }
+  }
+}
