@@ -6,9 +6,12 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/ksatchit/litmus-lite/internal/faults"
 	"github.com/ksatchit/litmus-lite/internal/report"
 	"github.com/ksatchit/litmus-lite/internal/scenario"
 )
@@ -94,6 +97,139 @@ hypotheses:
 	if inject.Samples == 0 {
 		t.Fatal("no inject samples")
 	}
+}
+
+func TestBadPhaseDurations(t *testing.T) {
+	_, err := Run(context.Background(), &scenario.Scenario{Baseline: "nope", Recover: "1s"}, Options{})
+	if err == nil || !strings.Contains(err.Error(), "baseline") {
+		t.Fatal(err)
+	}
+	_, err = Run(context.Background(), &scenario.Scenario{Baseline: "1s", Recover: "nope"}, Options{})
+	if err == nil || !strings.Contains(err.Error(), "recover") {
+		t.Fatal(err)
+	}
+	_, err = Run(context.Background(), &scenario.Scenario{
+		Baseline: "1ms",
+		Recover:  "1ms",
+		Probes: []scenario.Probe{{
+			Name: "p", Type: "http", URL: "http://127.0.0.1:1/", Interval: "nope", Mode: "continuous",
+		}},
+	}, Options{})
+	if err == nil || !strings.Contains(err.Error(), "interval") {
+		t.Fatal(err)
+	}
+}
+
+func TestRollbackAttributedToFailingFault(t *testing.T) {
+	var runs []*fakeRun
+	scriptedStart = func(f scenario.Fault) (faults.Running, error) {
+		fr := &fakeRun{}
+		if scenario.StringParam(f.Params, "stop") == "fail" {
+			fr.stopErr = fmt.Errorf("disk busy")
+		}
+		runs = append(runs, fr)
+		return fr, nil
+	}
+	sc := &scenario.Scenario{
+		Metadata: scenario.Metadata{Name: "rb"},
+		Baseline: "10ms",
+		Recover:  "10ms",
+		Faults: []scenario.Fault{
+			{Name: "bad", Kind: "test.scripted", Duration: "20ms", Params: map[string]any{"stop": "fail"}},
+			{Name: "good", Kind: "test.scripted", Duration: "20ms"},
+		},
+	}
+	res, err := Run(context.Background(), sc, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(res.FaultLog) != 2 {
+		t.Fatalf("fault log %+v", res.FaultLog)
+	}
+	if res.FaultLog[0].Rollback != "fail: disk busy" {
+		t.Fatalf("bad rollback %q", res.FaultLog[0].Rollback)
+	}
+	if res.FaultLog[1].Rollback != "ok" {
+		t.Fatalf("good rollback %q", res.FaultLog[1].Rollback)
+	}
+	for i, r := range runs {
+		if r.stops != 1 {
+			t.Fatalf("fault %d stopped %d times", i, r.stops)
+		}
+	}
+}
+
+func TestProbeStopOnStartFailure(t *testing.T) {
+	var hits atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(200)
+	}))
+	defer srv.Close()
+
+	var calls atomic.Int32
+	scriptedStart = func(scenario.Fault) (faults.Running, error) {
+		if calls.Add(1) == 2 {
+			return nil, fmt.Errorf("boom")
+		}
+		return &fakeRun{}, nil
+	}
+	sc := &scenario.Scenario{
+		Metadata: scenario.Metadata{Name: "leak"},
+		Baseline: "40ms",
+		Recover:  "10ms",
+		Faults: []scenario.Fault{
+			{Name: "a", Kind: "test.scripted", Duration: "1s"},
+			{Name: "b", Kind: "test.scripted", Duration: "1s"},
+		},
+		Probes: []scenario.Probe{{
+			Name: "p", Type: "http", URL: srv.URL, Interval: "15ms", Mode: "continuous",
+		}},
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	_, err := Run(ctx, sc, Options{})
+	if err == nil || !strings.Contains(err.Error(), "boom") {
+		t.Fatal(err)
+	}
+	time.Sleep(40 * time.Millisecond)
+	n := hits.Load()
+	time.Sleep(120 * time.Millisecond)
+	if hits.Load() != n {
+		t.Fatalf("probes still running: %d -> %d", n, hits.Load())
+	}
+}
+
+var scriptedStart func(scenario.Fault) (faults.Running, error)
+
+type scriptedFault struct{}
+
+func (scriptedFault) Name() string                  { return "test.scripted" }
+func (scriptedFault) OS() []string                  { return nil }
+func (scriptedFault) Validate(scenario.Fault) error { return nil }
+func (scriptedFault) Start(_ context.Context, f scenario.Fault) (faults.Running, error) {
+	if scriptedStart == nil {
+		return nil, fmt.Errorf("scriptedStart not set")
+	}
+	return scriptedStart(f)
+}
+
+type fakeRun struct {
+	stopErr error
+	stops   int
+}
+
+func (f *fakeRun) Intensity() float64 { return 1 }
+func (f *fakeRun) Stop() error {
+	f.stops++
+	if f.stops > 1 {
+		return fmt.Errorf("stopped twice")
+	}
+	return f.stopErr
+}
+
+func init() {
+	faults.Register(scriptedFault{})
 }
 
 func TestHypothesisFail(t *testing.T) {

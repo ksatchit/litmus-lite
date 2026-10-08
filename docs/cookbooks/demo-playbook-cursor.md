@@ -34,9 +34,9 @@ Read this once. In the room, name the intent in one sentence before the agent ru
 | | |
 | --- | --- |
 | **Intent** | Prove what happens when the **dependency process** stops making progress (not the HTTP hop). Missioncontrol should show the outage; it should recover when the process is continued. |
-| **How** | SIGSTOP the process whose command matches `engine` for 8s, then SIGCONT. Probes hit `:8080` `/api/engine/status` (not `/api/launches`, which is in-process). Probe timeout 800ms so a hung gRPC call becomes a failed sample. |
+| **How** | SIGSTOP the process whose command matches `engine` for 8s, then SIGCONT. The run takes `-allow-pid` of that engine PID and will not signal any other PID. Probes hit `:8080` `/api/engine/status` (not `/api/launches`, which is in-process). Probe timeout 800ms so a hung gRPC call becomes a failed sample. |
 | **Expect** | SOT healthz passes. During inject, engine-status availability drops (502 or timeout). After 8s, samples succeed again; `recovery <= 8s`. |
-| **Fail looks like** | Wrong PID paused (Cursor / another `go run`). Abort and `kill -CONT` that pid. Do not “just kill it.” |
+| **Fail looks like** | Validate refuses the run when `-allow-pid` is missing. If the PID you named is a different `engine` (Cursor / another `go run`), abort and `kill -CONT` that pid. Do not “just kill it.” |
 
 ### Hub: `http.latency`
 
@@ -64,14 +64,14 @@ Read this once. In the room, name the intent in one sentence before the agent ru
 | | |
 | --- | --- |
 | **Intent** | Freeze a local PID (or command match) and unfreeze it. Reversible. Unix only. |
-| **Expect** | Target stops progressing; SIGCONT restores it. Windows: validate error (not a fake pass). No `-yes`. |
+| **Expect** | Target stops progressing; SIGCONT restores it. Windows: validate error (not a fake pass). No `-yes`. Requires `-allow-pid` of the PID it may signal. |
 
 ### Hub: `process.kill`
 
 | | |
 | --- | --- |
 | **Intent** | Terminate a local process (SIGTERM, then SIGKILL after `sigkillAfter`). Destructive. |
-| **Expect** | Process is gone. **Always `-yes`.** Do **not** run this in the live demo on a shared engine. Unix only; Windows validate error. |
+| **Expect** | Process is gone. **Always `-yes` and `-allow-pid`.** Do **not** run this in the live demo on a shared engine. Unix only; Windows validate error. |
 
 ### Hub: `docker.pause`
 
@@ -99,7 +99,7 @@ Read this once. In the room, name the intent in one sentence before the agent ru
 | | |
 | --- | --- |
 | **Intent** | Write a **capped** file (max 256MB) then delete it. Safety test for “disk full” without filling the disk. |
-| **Expect** | File exists during inject, gone after. **Always `-yes`.** Do not demo on a real volume. |
+| **Expect** | File exists during inject, gone after. **Always `-yes`.** Refuses to overwrite a file that already exists. Do not demo on a real volume. |
 
 ---
 
@@ -178,7 +178,7 @@ Optional: split the editor and run `./litmus-lite hub list` in the terminal. Sam
 
 **Paste:**
 
-> The LaunchPad engine process is on this machine (command contains `engine`, or I will give you a pid). Write or use `examples/launchpad/pause-engine.chaos.yaml`. Validate. Run it. Explain the overlay: I expect GET /api/engine/status to fail or time out while the engine is SIGSTOP’d, then recover after SIGCONT. Do not probe /api/launches for this (it does not call engine). Do not use process.kill. Do not pass -yes.
+> The LaunchPad engine process is on this machine. Find its PID (`pgrep -fl engine`). Validate and run `examples/launchpad/pause-engine.chaos.yaml` with `-allow-pid` set to that PID. Explain the overlay: I expect GET /api/engine/status to fail or time out while the engine is SIGSTOP’d, then recover after SIGCONT. Do not probe /api/launches for this (it does not call engine). Do not use process.kill. Do not pass -yes.
 
 **Intent / expect:** see `pause-engine` in the catalog.
 
@@ -233,7 +233,7 @@ Reset: restart LaunchPad if you paused engine; delete `report.json` / `report.ht
 ```
 1) Import/use ignite (or http.latency). Validate. Probes on :18080. Run. Diagnose overlay.
 2) list_faults + doctor.
-3) pause-engine. No kill. No -yes. Explain availability drop + recover.
+3) pause-engine with -allow-pid <engine pid>. No kill. No -yes. Explain availability drop + recover.
 4) compare_reports baseline vs candidate. Phase table only.
 ```
 

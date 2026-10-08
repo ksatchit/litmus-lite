@@ -81,7 +81,7 @@ func usage() {
 Commands:
   new -beside DIR        write a co-located *.chaos.yaml
   validate FILE          schema + safety
-  run FILE               execute a scenario
+  run FILE               execute a scenario (-allow-target, -allow-pid, -yes)
   diagnose FILE.json     explain a report
   hub list|search|show|import
   init                   register MCP + Cursor rules
@@ -126,6 +126,7 @@ func cmdValidate(args []string) int {
 	fs := flag.NewFlagSet("validate", flag.ContinueOnError)
 	out := outputFlag(fs)
 	allow := fs.String("allow-target", "", "comma-separated extra hosts")
+	allowPID := fs.String("allow-pid", "", "comma-separated PIDs process faults may signal")
 	yes := fs.Bool("yes", false, "allow long/destructive runs")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -150,9 +151,10 @@ func cmdValidate(args []string) int {
 			return 1
 		}
 	}
-	opt := safety.Options{Yes: *yes}
-	if *allow != "" {
-		opt.AllowTargets = strings.Split(*allow, ",")
+	opt, err := safetyFromFlags(*allow, *allowPID, *yes)
+	if err != nil {
+		printErr(*out, err)
+		return 2
 	}
 	if err := safety.Check(sc, opt); err != nil {
 		printErr(*out, err)
@@ -173,6 +175,7 @@ func cmdRun(args []string) int {
 	htmlPath := fs.String("html", "report.html", "HTML report path")
 	junitPath := fs.String("junit", "", "optional JUnit XML path")
 	allow := fs.String("allow-target", "", "comma-separated extra hosts")
+	allowPID := fs.String("allow-pid", "", "comma-separated PIDs process faults may signal")
 	yes := fs.Bool("yes", false, "allow long/destructive runs")
 	if err := fs.Parse(args); err != nil {
 		return 2
@@ -187,15 +190,17 @@ func cmdRun(args []string) int {
 		printErr(*outFmt, err)
 		return 1
 	}
-	opt := safety.Options{Yes: *yes}
-	if *allow != "" {
-		opt.AllowTargets = strings.Split(*allow, ",")
+	opt, err := safetyFromFlags(*allow, *allowPID, *yes)
+	if err != nil {
+		printErr(*outFmt, err)
+		return 2
 	}
 	if err := safety.Check(sc, opt); err != nil {
 		printErr(*outFmt, err)
 		return 2
 	}
-	res, err := engine.Run(context.Background(), sc, engine.Options{ScenarioDir: filepath.Dir(file)})
+	ctx := safety.WithAllowPIDs(context.Background(), opt.AllowPIDs)
+	res, err := engine.Run(ctx, sc, engine.Options{ScenarioDir: filepath.Dir(file)})
 	if err != nil {
 		printErr(*outFmt, err)
 		audit.Append(audit.Line{Command: "run", File: file})
@@ -513,6 +518,23 @@ func cmdExport(args []string) int {
 	}
 	fmt.Print(k8s.JobYAML(sc))
 	return 0
+}
+
+func safetyFromFlags(allow, allowPID string, yes bool) (safety.Options, error) {
+	pids, err := safety.ParsePIDs(allowPID)
+	if err != nil {
+		return safety.Options{}, err
+	}
+	opt := safety.Options{Yes: yes, AllowPIDs: pids}
+	if allow != "" {
+		for _, h := range strings.Split(allow, ",") {
+			h = strings.TrimSpace(h)
+			if h != "" {
+				opt.AllowTargets = append(opt.AllowTargets, h)
+			}
+		}
+	}
+	return opt, nil
 }
 
 func printErr(out string, err error) {

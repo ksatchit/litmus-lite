@@ -9,23 +9,33 @@ import (
 	"strings"
 )
 
-func pidFromPS(command string) (int, error) {
+func pidsFromPS(command string) ([]int, error) {
 	out, err := exec.Command("ps", "-axo", "pid,comm").Output()
 	if err != nil {
-		return 0, fmt.Errorf("resolve command %q: %w", command, err)
+		return nil, fmt.Errorf("resolve command %q: %w", command, err)
 	}
+	var found []int
+	seen := map[int]struct{}{}
 	for _, line := range strings.Split(string(out), "\n") {
 		fields := strings.Fields(line)
-		if len(fields) < 2 {
+		if len(fields) < 2 || fields[0] == "PID" {
 			continue
 		}
-		if strings.Contains(fields[1], command) || strings.HasSuffix(fields[1], command) {
-			pid, err := strconv.Atoi(fields[0])
-			if err != nil {
-				continue
-			}
-			return pid, nil
+		if !commandMatches(fields[1], command) {
+			continue
 		}
+		pid, err := strconv.Atoi(fields[0])
+		if err != nil || pid <= 0 {
+			continue
+		}
+		if _, ok := seen[pid]; ok {
+			continue
+		}
+		seen[pid] = struct{}{}
+		found = append(found, pid)
 	}
-	return 0, fmt.Errorf("no process matching command %q", command)
+	if len(found) == 0 {
+		return nil, fmt.Errorf("no process matching command %q", command)
+	}
+	return found, nil
 }

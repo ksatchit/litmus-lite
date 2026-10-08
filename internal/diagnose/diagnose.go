@@ -20,23 +20,24 @@ func Text(res *report.Result) string {
 			inject = &res.Phases[i]
 		}
 	}
-	if inject != nil && len(res.FaultLog) > 0 {
-		inj := res.FaultLog[0].Intensity
+	if inject != nil {
 		p95 := float64(inject.P95.Milliseconds())
-		if inj > 0 && p95 < inj*0.3 {
-			fmt.Fprintf(&b, "Fault may not have landed: injected intensity %.0f but inject-phase p95 is %.0f ms. Point probes/load at the proxy listen address, not the upstream.\n", inj, p95)
-		} else if inj > 0 {
-			fmt.Fprintf(&b, "Fault appears to have landed: inject-phase p95 is %.0f ms versus injected intensity %.0f.\n", p95, inj)
+		for _, f := range res.FaultLog {
+			if report.LatencyKind(f.Kind) && f.Intensity > 0 {
+				if p95 < f.Intensity*0.3 {
+					fmt.Fprintf(&b, "Fault %s may not have landed: injected %.0f ms but inject-phase p95 is %.0f ms. Point probes and load at the proxy listen address, not the upstream.\n", f.Name, f.Intensity, p95)
+				} else {
+					fmt.Fprintf(&b, "Fault %s appears to have landed: inject-phase p95 is %.0f ms versus injected %.0f ms.\n", f.Name, p95, f.Intensity)
+				}
+				continue
+			}
+			fmt.Fprintf(&b, "Fault %s (%s) injected %s. Probe p95 is not used to judge whether this kind landed.\n", f.Name, f.Kind, report.IntensityText(f))
 		}
 		if inject.ErrorRate > 0.05 {
-			fmt.Fprintf(&b, "Error rate during inject is %.1f%%. If this is unexpected, check timeouts, retries, and circuit breakers in the client (LaunchPad ignite path).\n", inject.ErrorRate*100)
+			fmt.Fprintf(&b, "Error rate during inject is %.1f%%. If this is unexpected, check timeouts, retries, and circuit breakers on the path under test.\n", inject.ErrorRate*100)
 		}
 	}
-	if res.Recovery > 5e9 { // 5s in ns Duration
-		fmt.Fprintf(&b, "Recovery took %s. The service may be missing a fast timeout or retry after the fault stops.\n", res.Recovery)
-	} else {
-		fmt.Fprintf(&b, "Recovery time-to-healthy: %s.\n", res.Recovery)
-	}
+	fmt.Fprintf(&b, "Recovery time-to-healthy: %s.\n", res.Recovery)
 	for _, h := range res.Hypotheses {
 		if !h.Passed {
 			fmt.Fprintf(&b, "Hypothesis %s failed: %s %s %s (observed %s).\n", h.Name, h.Metric, h.Operator, h.Limit, h.Observed)

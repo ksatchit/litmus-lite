@@ -20,7 +20,8 @@ Walkthroughs: [terminal](../../docs/cookbooks/demo-playbook.md) · [Cursor-first
 go build -o litmus-lite ./cmd/litmus-lite
 ./litmus-lite run examples/launchpad/ignite.chaos.yaml
 open report.html
-./litmus-lite run examples/launchpad/pause-engine.chaos.yaml
+PID=$(pgrep -n engine)
+./litmus-lite run examples/launchpad/pause-engine.chaos.yaml -allow-pid "$PID"
 ```
 
 Probes and VegaLoad must use the **proxy listen** address (`:18080`) for HTTP faults. Process pause talks to `:8080` (no proxy).

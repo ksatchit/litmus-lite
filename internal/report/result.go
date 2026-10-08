@@ -280,12 +280,37 @@ func phaseName(t time.Time, faults []FaultEvent, start time.Time) string {
 	return "steady"
 }
 
+func IntensityText(f FaultEvent) string {
+	switch f.Kind {
+	case "http.latency", "http.timeout":
+		return fmt.Sprintf("%.0f ms", f.Intensity)
+	case "http.status-inject":
+		return fmt.Sprintf("%.0f%% status", f.Intensity)
+	case "disk.fill", "memory.hog":
+		return fmt.Sprintf("%.0f bytes", f.Intensity)
+	case "cpu.hog":
+		return fmt.Sprintf("%.0f workers", f.Intensity)
+	case "process.pause", "process.kill", "docker.pause":
+		return "applied"
+	default:
+		return fmt.Sprintf("%.0f", f.Intensity)
+	}
+}
+
+func LatencyKind(kind string) bool {
+	return kind == "http.latency" || kind == "http.timeout"
+}
+
 func ObservedVsInjected(faults []FaultEvent, inject Phase) []KV {
 	var out []KV
 	for _, f := range faults {
-		inj := fmt.Sprintf("%.0f", f.Intensity)
-		obs := fmt.Sprintf("%d ms p95", inject.P95.Milliseconds())
-		out = append(out, KV{Name: f.Name + " intensity vs probe p95", Injected: inj, Observed: obs})
+		name := f.Name
+		obs := fmt.Sprintf("%d ms p95, %.1f%% errors", inject.P95.Milliseconds(), inject.ErrorRate*100)
+		if LatencyKind(f.Kind) {
+			name = f.Name + " intensity vs probe p95"
+			obs = fmt.Sprintf("%d ms p95", inject.P95.Milliseconds())
+		}
+		out = append(out, KV{Name: name, Injected: IntensityText(f), Observed: obs})
 	}
 	return out
 }

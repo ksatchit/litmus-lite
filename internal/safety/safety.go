@@ -1,9 +1,12 @@
 package safety
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/url"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -38,6 +41,9 @@ func Check(s *scenario.Scenario, opt Options) error {
 				return err
 			}
 		}
+		if err := checkProcessTarget(f, opt.AllowPIDs); err != nil {
+			return err
+		}
 	}
 	if max > DefaultMaxDuration && !opt.Yes {
 		return fmt.Errorf("fault duration %s exceeds default cap %s (pass -yes)", max, DefaultMaxDuration)
@@ -53,6 +59,79 @@ func Check(s *scenario.Scenario, opt Options) error {
 		if err := hostAllowed(s.Target.BaseURL, opt.AllowTargets); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+type allowPIDKey struct{}
+
+// WithAllowPIDs attaches the -allow-pid list to ctx so fault plugins can
+// refuse to signal anything else. The CLI checks the same list before run.
+func WithAllowPIDs(ctx context.Context, pids []int) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cp := append([]int(nil), pids...)
+	return context.WithValue(ctx, allowPIDKey{}, cp)
+}
+
+func AllowPIDsFrom(ctx context.Context) []int {
+	if ctx == nil {
+		return nil
+	}
+	pids, _ := ctx.Value(allowPIDKey{}).([]int)
+	return pids
+}
+
+func PIDAllowed(pid int, allow []int) bool {
+	for _, a := range allow {
+		if a == pid {
+			return true
+		}
+	}
+	return false
+}
+
+// ParsePIDs parses a comma-separated -allow-pid value. Empty is an empty list.
+func ParsePIDs(s string) ([]int, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, nil
+	}
+	var out []int
+	for _, p := range strings.Split(s, ",") {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
+		n, err := strconv.Atoi(p)
+		if err != nil || n <= 0 {
+			return nil, fmt.Errorf("-allow-pid %q: want a positive integer", p)
+		}
+		out = append(out, n)
+	}
+	return out, nil
+}
+
+func checkProcessTarget(f scenario.Fault, allow []int) error {
+	if f.Kind != "process.pause" && f.Kind != "process.kill" {
+		return nil
+	}
+	pid := scenario.IntParam(f.Params, "pid", 0)
+	if pid > 0 {
+		if pid <= 1 || pid == os.Getpid() {
+			return fmt.Errorf("fault %s refuses to signal pid %d", f.Name, pid)
+		}
+		if !PIDAllowed(pid, allow) {
+			return fmt.Errorf("fault %s pid %d is not allowed; pass -allow-pid %d", f.Name, pid, pid)
+		}
+		return nil
+	}
+	if scenario.StringParam(f.Params, "command") == "" {
+		return nil
+	}
+	if len(allow) == 0 {
+		return fmt.Errorf("fault %s (%s) resolves a process by command; pass -allow-pid for the PID it may signal", f.Name, f.Kind)
 	}
 	return nil
 }

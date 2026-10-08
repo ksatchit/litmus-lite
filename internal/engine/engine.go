@@ -21,13 +21,28 @@ type Options struct {
 
 func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Result, error) {
 	res := &report.Result{Name: sc.Metadata.Name, StartedAt: time.Now(), Passed: true}
-	baseline, _ := time.ParseDuration(sc.Baseline)
-	recoverFor, _ := time.ParseDuration(sc.Recover)
+	baseline, err := time.ParseDuration(sc.Baseline)
+	if err != nil {
+		return res, fmt.Errorf("baseline: %w", err)
+	}
+	recoverFor, err := time.ParseDuration(sc.Recover)
+	if err != nil {
+		return res, fmt.Errorf("recover: %w", err)
+	}
 
 	var mu sync.Mutex
 	var samples []probe.Sample
 	stopProbes := make(chan struct{})
 	var wg sync.WaitGroup
+	var probeOnce sync.Once
+	probesOn := false
+	haltProbes := func() {
+		if !probesOn {
+			return
+		}
+		probeOnce.Do(func() { close(stopProbes) })
+		wg.Wait()
+	}
 
 	runProbe := func(p scenario.Probe) {
 		s := probe.Once(ctx, p)
@@ -47,17 +62,34 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 	}
 
 	var running []faults.Running
+	stopped := make([]bool, 0)
 	var events []report.FaultEvent
 	defer func() {
+		haltProbes()
+		for i, r := range running {
+			if i < len(stopped) && stopped[i] {
+				continue
+			}
+			stopErr := r.Stop()
+			if i < len(stopped) {
+				stopped[i] = true
+			}
+			if i >= len(events) {
+				continue
+			}
+			if stopErr != nil {
+				events[i].Rollback = "fail: " + stopErr.Error()
+			} else if events[i].Rollback == "" {
+				events[i].Rollback = "ok"
+			}
+		}
 		for i := range events {
 			if events[i].Rollback == "" {
 				events[i].Rollback = "ok"
 			}
 		}
-		for _, r := range running {
-			if err := r.Stop(); err != nil && len(events) > 0 {
-				events[len(events)-1].Rollback = "fail: " + err.Error()
-			}
+		if res.FaultLog == nil {
+			res.FaultLog = events
 		}
 	}()
 
@@ -90,25 +122,48 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 			a.Disarm()
 		}
 		running = append(running, r)
+		stopped = append(stopped, false)
 		events = append(events, report.FaultEvent{
 			Name: f.Name, Kind: f.Kind, Tunables: f.Params, Intensity: r.Intensity(),
 		})
 	}
 
-	startProbes := func() {
+	startProbes := func() error {
+		type job struct {
+			p        scenario.Probe
+			interval time.Duration
+		}
+		var jobs []job
 		for _, p := range sc.Probes {
 			if p.Mode != "continuous" && p.Mode != "on-chaos" && p.Mode != "" {
 				continue
 			}
-			p := p
-			interval, _ := time.ParseDuration(p.Interval)
-			if interval <= 0 {
+			var interval time.Duration
+			if p.Interval == "" {
 				interval = 200 * time.Millisecond
+			} else {
+				d, err := time.ParseDuration(p.Interval)
+				if err != nil {
+					return fmt.Errorf("probe %s interval: %w", p.Name, err)
+				}
+				if d <= 0 {
+					interval = 200 * time.Millisecond
+				} else {
+					interval = d
+				}
 			}
+			jobs = append(jobs, job{p: p, interval: interval})
+		}
+		if len(jobs) == 0 {
+			return nil
+		}
+		probesOn = true
+		for _, j := range jobs {
+			j := j
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				t := time.NewTicker(interval)
+				t := time.NewTicker(j.interval)
 				defer t.Stop()
 				for {
 					select {
@@ -117,19 +172,20 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 					case <-stopProbes:
 						return
 					case <-t.C:
-						runProbe(p)
+						runProbe(j.p)
 					}
 				}
 			}()
 		}
+		return nil
 	}
-	startProbes()
+	if err := startProbes(); err != nil {
+		return res, err
+	}
 
 	steadyStart := time.Now()
 	select {
 	case <-ctx.Done():
-		close(stopProbes)
-		wg.Wait()
 		return res, ctx.Err()
 	case <-time.After(baseline):
 	}
@@ -140,6 +196,7 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 			return res, err
 		}
 		running = append(running, r)
+		stopped = append(stopped, false)
 		events = append(events, report.FaultEvent{
 			Name: p.f.Name, Kind: p.f.Kind, Start: time.Now(), Tunables: p.f.Params, Intensity: r.Intensity(),
 		})
@@ -203,6 +260,7 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 		} else {
 			events[i].Rollback = "ok"
 		}
+		stopped[i] = true
 		events[i].End = time.Now()
 	}
 
@@ -211,9 +269,8 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 	case <-time.After(recoverFor):
 	}
 	recoverEnd := time.Now()
-	close(stopProbes)
+	haltProbes()
 	loadWG.Wait()
-	wg.Wait()
 
 	for _, p := range append(sc.SteadyState, sc.Probes...) {
 		if p.Mode == "EOT" {

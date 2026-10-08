@@ -61,6 +61,66 @@ func TestDiskFillRollback(t *testing.T) {
 	}
 }
 
+func TestDiskFillRefusesExisting(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "app.db")
+	if err := os.WriteFile(p, []byte("keep-me"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := diskFill{}.Start(context.Background(), scenario.Fault{
+		Params: map[string]any{"path": p, "size": "1KB"},
+	})
+	if err == nil {
+		t.Fatal("expected refuse")
+	}
+	b, err := os.ReadFile(p)
+	if err != nil || string(b) != "keep-me" {
+		t.Fatalf("file changed: %q %v", b, err)
+	}
+}
+
+func TestDiskFillExpandsHome(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	got, err := expandHome("~/work/app.db")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != filepath.Join(home, "work", "app.db") {
+		t.Fatalf("expanded %q", got)
+	}
+	err = diskFill{}.Validate(scenario.Fault{Params: map[string]any{"path": "~", "size": "1KB"}})
+	if err == nil {
+		t.Fatal("home directory itself must be refused")
+	}
+}
+
+func TestDiskFillRefusesRoot(t *testing.T) {
+	err := diskFill{}.Validate(scenario.Fault{Params: map[string]any{"path": "/", "size": "1KB"}})
+	if err == nil {
+		t.Fatal("root path")
+	}
+	err = diskFill{}.Validate(scenario.Fault{Params: map[string]any{"path": `C:\`, "size": "1KB"}})
+	if err == nil {
+		t.Fatal("drive root")
+	}
+}
+
+func TestDiskFillDoesNotCreateParent(t *testing.T) {
+	parent := filepath.Join(t.TempDir(), "missing")
+	p := filepath.Join(parent, "fill.bin")
+	_, err := diskFill{}.Start(context.Background(), scenario.Fault{
+		Params: map[string]any{"path": p, "size": "1KB"},
+	})
+	if err == nil {
+		t.Fatal("expected missing parent")
+	}
+	if _, statErr := os.Stat(parent); !os.IsNotExist(statErr) {
+		t.Fatalf("parent created: %v", statErr)
+	}
+}
+
 func TestDiskFillCap(t *testing.T) {
 	err := diskFill{}.Validate(scenario.Fault{Params: map[string]any{"size": "1GB"}})
 	if err == nil {

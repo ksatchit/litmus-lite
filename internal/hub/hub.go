@@ -141,8 +141,9 @@ rollback: always
 	},
 	{
 		ID: "process.pause", Title: "Process pause", Kind: "process.pause", OS: []string{"linux", "darwin"},
-		Summary: "SIGSTOP then SIGCONT a local process (not supported on Windows).",
-		Template: `apiVersion: litmus-lite.io/v1
+		Summary: "SIGSTOP then SIGCONT a PID listed in -allow-pid (not supported on Windows).",
+		Template: `# Run with -allow-pid set to the PID this scenario may signal.
+apiVersion: litmus-lite.io/v1
 kind: Scenario
 metadata:
   name: process-pause
@@ -173,8 +174,9 @@ rollback: always
 	},
 	{
 		ID: "process.kill", Title: "Process kill", Kind: "process.kill", OS: []string{"linux", "darwin"},
-		Summary: "SIGTERM then SIGKILL a local process. Always requires -yes (not supported on Windows).",
-		Template: `apiVersion: litmus-lite.io/v1
+		Summary: "SIGTERM then SIGKILL a PID listed in -allow-pid. Always requires -yes (not supported on Windows).",
+		Template: `# Run with -yes and -allow-pid set to the PID this scenario may signal.
+apiVersion: litmus-lite.io/v1
 kind: Scenario
 metadata:
   name: process-kill
@@ -292,8 +294,9 @@ rollback: always
 	},
 	{
 		ID: "disk.fill", Title: "Disk fill", Kind: "disk.fill", OS: []string{"linux", "darwin", "windows"},
-		Summary: "Write a capped file (max 256MB) then delete it. Always requires -yes.",
-		Template: `apiVersion: litmus-lite.io/v1
+		Summary: "Write a new file (refuses to overwrite), capped at 256MB, then delete it. Always requires -yes.",
+		Template: `# Refuses to overwrite an existing file. Requires -yes.
+apiVersion: litmus-lite.io/v1
 kind: Scenario
 metadata:
   name: disk-fill

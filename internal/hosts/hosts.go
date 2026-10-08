@@ -33,7 +33,7 @@ Use the CLI (or the matching MCP tools, which wrap the CLI):
 - ` + "`litmus-lite run FILE -output json -out report.json`" + `
 - ` + "`litmus-lite diagnose report.json`" + `
 
-Never keep a scenario only in chat. Always write a file. Point probes at the proxy listen address during HTTP faults. Do not require Prometheus or VegaLoad for a chaos-only run.
+Never keep a scenario only in chat. Always write a file. Point probes at the proxy listen address during HTTP faults. Do not require Prometheus or VegaLoad for a chaos-only run. ` + "`process.pause`" + ` and ` + "`process.kill`" + ` signal only PIDs passed with ` + "`-allow-pid`" + `. ` + "`disk.fill`" + ` requires ` + "`-yes`" + ` and will not overwrite an existing file.
 `
 
 func WriteCursor(projectRoot, binary string) error {

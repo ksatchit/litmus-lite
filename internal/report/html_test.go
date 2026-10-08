@@ -6,6 +6,19 @@ import (
 	"time"
 )
 
+func TestObservedVsInjectedUnits(t *testing.T) {
+	rows := ObservedVsInjected([]FaultEvent{
+		{Name: "fill", Kind: "disk.fill", Intensity: 4096},
+		{Name: "slow", Kind: "http.latency", Intensity: 800},
+	}, Phase{P95: 50 * time.Millisecond})
+	if strings.Contains(rows[0].Name, "p95") || !strings.Contains(rows[0].Injected, "bytes") {
+		t.Fatalf("disk row %+v", rows[0])
+	}
+	if !strings.Contains(rows[1].Name, "p95") || rows[1].Injected != "800 ms" {
+		t.Fatalf("latency row %+v", rows[1])
+	}
+}
+
 func TestRenderHTMLStructure(t *testing.T) {
 	start := time.Date(2026, 10, 8, 7, 0, 0, 0, time.UTC)
 	res := &Result{

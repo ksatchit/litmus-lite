@@ -50,7 +50,7 @@ If a proposed change breaks any of these, stop and flag it.
 
 - `litmus-lite new -beside DIR` — write a co-located scenario.
 - `litmus-lite validate FILE`
-- `litmus-lite run FILE` — `-out`, `-allow-target`, `-yes`, `-output json`
+- `litmus-lite run FILE` — `-out`, `-allow-target`, `-allow-pid`, `-yes`, `-output json`
 - `litmus-lite diagnose FILE.json`
 - `litmus-lite hub list` / `hub import ID -beside DIR` — HTTP, process, docker.pause, cpu.hog, memory.hog, disk.fill; optional `.litmus-lite/hub.lock` (embedded IDs win)
 - `litmus-lite run FILE` — `-junit FILE` writes optional JUnit XML

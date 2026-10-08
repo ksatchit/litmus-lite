@@ -88,10 +88,12 @@ Confirm the engine process name (often `engine` when run as `go run ./cmd/engine
 pgrep -fl engine
 ```
 
-If the name is not `engine`, edit `examples/launchpad/pause-engine.chaos.yaml` `params.pid` to that PID, or set `params.command` to a unique substring from `pgrep`.
+If the name is not `engine`, edit `examples/launchpad/pause-engine.chaos.yaml` `params.pid` to that PID, or set `params.command` to a unique substring from `pgrep`. Pass that same PID to `-allow-pid`. A command match may signal only a PID on that list; if the match is not the PID you named, the run fails before any signal.
 
 ```
-./litmus-lite run examples/launchpad/pause-engine.chaos.yaml
+PID=$(pgrep -n engine)
+./litmus-lite validate examples/launchpad/pause-engine.chaos.yaml -allow-pid "$PID"
+./litmus-lite run examples/launchpad/pause-engine.chaos.yaml -allow-pid "$PID"
 open report.html
 ```
 
@@ -101,8 +103,9 @@ What must be true:
 - During inject, `/api/engine/status` fails or times out (engine is SIGSTOP’d). `GET /api/launches` stays 200 — it does not call engine.
 - After 8s, SIGCONT; recovery hypothesis passes.
 - No `-yes` (pause is reversible). Do **not** run `process.kill` in the demo unless you have a disposable engine you can restart.
+- `-allow-pid` is the PID you intend to freeze. The run will not signal any other PID.
 
-If command match hits the wrong process, abort. Show `validate` / the YAML; do not shotgun `kill`.
+If the run refuses the PID, abort. Show `validate` / the YAML; do not shotgun `kill`.
 
 ## 5. Beat D — compare two runs (Phase 1, 60 seconds)
 
@@ -141,4 +144,6 @@ rm -f report.json report.html baseline.json candidate.json junit.xml
 ./litmus-lite hub import memory.hog -beside .
 ./litmus-lite hub import disk.fill -beside .
 # disk.fill and process.kill: run with -yes
+# process.pause and process.kill: also pass -allow-pid <pid>
+# disk.fill refuses to overwrite a file that already exists
 ```

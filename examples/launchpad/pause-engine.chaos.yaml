@@ -1,3 +1,4 @@
+# Signal only the PID you pass: litmus-lite run <this-file> -allow-pid <engine-pid>
 apiVersion: litmus-lite.io/v1
 kind: Scenario
 metadata:

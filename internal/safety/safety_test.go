@@ -1,6 +1,8 @@
 package safety
 
 import (
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/ksatchit/litmus-lite/internal/scenario"
@@ -99,8 +101,81 @@ probes:
 	if err := Check(s, Options{}); err == nil {
 		t.Fatal("process.kill requires -yes")
 	}
-	if err := Check(s, Options{Yes: true}); err != nil {
+	if err := Check(s, Options{Yes: true}); err == nil {
+		t.Fatal("process.kill requires -allow-pid")
+	}
+	if err := Check(s, Options{Yes: true, AllowPIDs: []int{1234}}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestProcessPauseRequiresAllowPID(t *testing.T) {
+	s, err := scenario.Parse([]byte(`
+apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata: { name: t }
+faults:
+  - name: k
+    kind: process.pause
+    duration: 2s
+    params: { command: engine }
+probes:
+  - name: p
+    type: http
+    url: http://127.0.0.1:1/
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Check(s, Options{}); err == nil {
+		t.Fatal("command match requires -allow-pid")
+	}
+	if err := Check(s, Options{AllowPIDs: []int{1234}}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestProcessRefusesInitAndSelf(t *testing.T) {
+	initPID, err := scenario.Parse([]byte(`
+apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata: { name: t }
+faults:
+  - name: k
+    kind: process.kill
+    duration: 2s
+    params: { pid: 1 }
+probes:
+  - name: p
+    type: http
+    url: http://127.0.0.1:1/
+`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Check(initPID, Options{Yes: true, AllowPIDs: []int{1}}); err == nil {
+		t.Fatal("pid 1 must be refused")
+	}
+	selfYAML := fmt.Sprintf(`
+apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata: { name: t }
+faults:
+  - name: k
+    kind: process.pause
+    duration: 2s
+    params: { pid: %d }
+probes:
+  - name: p
+    type: http
+    url: http://127.0.0.1:1/
+`, os.Getpid())
+	self, err := scenario.Parse([]byte(selfYAML))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Check(self, Options{AllowPIDs: []int{os.Getpid()}}); err == nil {
+		t.Fatal("own pid must be refused")
 	}
 }
 

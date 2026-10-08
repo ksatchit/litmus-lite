@@ -28,6 +28,33 @@ func TestEvalSuite(t *testing.T) {
 	}
 }
 
+func TestCLIArgsForwardSafetyFlags(t *testing.T) {
+	argv, err := cliArgs("run_test", map[string]any{
+		"file":         "a.chaos.yaml",
+		"yes":          true,
+		"allow-pid":    "42",
+		"allow-target": "example.com",
+		"out":          "out.json",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := strings.Join(argv, " ")
+	for _, want := range []string{"-yes", "-allow-pid 42", "-allow-target example.com", "-out out.json", "a.chaos.yaml"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q in %s", want, got)
+		}
+	}
+	argv, err = cliArgs("validate_scenario", map[string]any{"file": "a.chaos.yaml", "allow-pid": "7"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got = strings.Join(argv, " ")
+	if !strings.Contains(got, "-allow-pid 7") || !strings.HasSuffix(got, "a.chaos.yaml") {
+		t.Fatal(got)
+	}
+}
+
 func TestToolsHaveCLI(t *testing.T) {
 	if err := toolsHaveCLI(); err != nil {
 		t.Fatal(err)
