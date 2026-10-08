@@ -1,0 +1,216 @@
+package hub
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+type Item struct {
+	ID       string   `json:"id"`
+	Title    string   `json:"title"`
+	Kind     string   `json:"kind"`
+	OS       []string `json:"os"`
+	Summary  string   `json:"summary"`
+	Template string   `json:"-"`
+}
+
+var catalog = []Item{
+	{
+		ID: "http.latency", Title: "HTTP latency", Kind: "http.latency", OS: []string{"linux", "darwin", "windows"},
+		Summary: "Userspace reverse proxy adds delay (and optional status injection) in front of an HTTP service.",
+		Template: `apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata:
+  name: http-latency
+target:
+  kind: http
+  baseUrl: http://127.0.0.1:8080
+steadyState:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    expect: { status: 200 }
+    mode: SOT
+faults:
+  - name: slow-api
+    kind: http.latency
+    duration: 12s
+    params:
+      listen: "127.0.0.1:18080"
+      upstream: "127.0.0.1:8080"
+      delay: 800ms
+      jitter: 100ms
+      statusOverride: { percent: 5, code: 500 }
+probes:
+  - name: list
+    type: http
+    url: http://127.0.0.1:18080/api/launches
+    interval: 200ms
+    mode: continuous
+    expect: { status: 200 }
+hypotheses:
+  - name: errors-bounded
+    metric: error_rate
+    operator: <
+    value: "15%"
+  - name: recovers
+    metric: recovery
+    operator: <=
+    value: 5s
+rollback: always
+`,
+	},
+	{
+		ID: "http.status-inject", Title: "HTTP status inject", Kind: "http.status-inject", OS: []string{"linux", "darwin", "windows"},
+		Summary: "Inject HTTP error status codes through a userspace proxy.",
+		Template: `apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata:
+  name: http-status-inject
+target:
+  kind: http
+  baseUrl: http://127.0.0.1:8080
+steadyState:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    expect: { status: 200 }
+faults:
+  - name: five-hundreds
+    kind: http.status-inject
+    duration: 10s
+    params:
+      listen: "127.0.0.1:18080"
+      upstream: "127.0.0.1:8080"
+      percent: 20
+      code: 500
+probes:
+  - name: list
+    type: http
+    url: http://127.0.0.1:18080/api/launches
+    interval: 200ms
+    expect: { status: 200 }
+hypotheses:
+  - name: still-mostly-ok
+    metric: error_rate
+    operator: <
+    value: "50%"
+rollback: always
+`,
+	},
+	{
+		ID: "http.timeout", Title: "HTTP timeout", Kind: "http.timeout", OS: []string{"linux", "darwin", "windows"},
+		Summary: "Stall HTTP responses at a userspace proxy.",
+		Template: `apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata:
+  name: http-timeout
+target:
+  kind: http
+  baseUrl: http://127.0.0.1:8080
+steadyState:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    expect: { status: 200 }
+faults:
+  - name: stall
+    kind: http.timeout
+    duration: 8s
+    params:
+      listen: "127.0.0.1:18080"
+      upstream: "127.0.0.1:8080"
+      timeout: 3s
+probes:
+  - name: list
+    type: http
+    url: http://127.0.0.1:18080/api/launches
+    interval: 500ms
+    timeout: 1s
+    expect: { status: 200 }
+hypotheses:
+  - name: recovers
+    metric: recovery
+    operator: <=
+    value: 8s
+rollback: always
+`,
+	},
+	{
+		ID: "process.pause", Title: "Process pause", Kind: "process.pause", OS: []string{"linux", "darwin"},
+		Summary: "SIGSTOP then SIGCONT a local process (not supported on Windows).",
+		Template: `apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata:
+  name: process-pause
+steadyState:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    expect: { status: 200 }
+faults:
+  - name: freeze-engine
+    kind: process.pause
+    duration: 8s
+    params:
+      command: engine
+probes:
+  - name: engine-status
+    type: http
+    url: http://127.0.0.1:8080/api/engine/status
+    interval: 300ms
+    expect: { status: 200 }
+hypotheses:
+  - name: recovers
+    metric: recovery
+    operator: <=
+    value: 8s
+rollback: always
+`,
+	},
+}
+
+func List() []Item { return catalog }
+
+func Get(id string) (Item, error) {
+	for _, it := range catalog {
+		if it.ID == id {
+			return it, nil
+		}
+	}
+	return Item{}, fmt.Errorf("unknown hub id %q", id)
+}
+
+func Search(q string) []Item {
+	q = strings.ToLower(q)
+	var out []Item
+	for _, it := range catalog {
+		if strings.Contains(strings.ToLower(it.ID+" "+it.Title+" "+it.Kind+" "+it.Summary), q) {
+			out = append(out, it)
+		}
+	}
+	return out
+}
+
+func Import(id, beside, name string) (string, error) {
+	it, err := Get(id)
+	if err != nil {
+		return "", err
+	}
+	if name == "" {
+		name = strings.ReplaceAll(id, ".", "-")
+	}
+	if !strings.HasSuffix(name, ".chaos.yaml") {
+		name += ".chaos.yaml"
+	}
+	if err := os.MkdirAll(beside, 0o755); err != nil {
+		return "", err
+	}
+	path := filepath.Join(beside, name)
+	if err := os.WriteFile(path, []byte(it.Template), 0o644); err != nil {
+		return "", err
+	}
+	return path, nil
+}

@@ -1,0 +1,15 @@
+name: litmus-lite
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - run: go test ./...
+      - run: go build -o litmus-lite ./cmd/litmus-lite
+      - run: ./litmus-lite validate examples/launchpad/ignite.chaos.yaml
+      - run: ./litmus-lite mcp eval
+      - run: ./litmus-lite move-to -adapter ir examples/launchpad/ignite.chaos.yaml

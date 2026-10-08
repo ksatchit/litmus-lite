@@ -1,0 +1,11 @@
+/litmus-lite
+/litmus-lite.exe
+/report.json
+/report.html
+dist/
+.DS_Store
+
+# Local-only internals — never commit
+docs/PRD.md
+docs/context/
+examples/launchpad/UPSTREAM.md
