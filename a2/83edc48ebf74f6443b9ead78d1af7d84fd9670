@@ -1,0 +1,28 @@
+examples/launchpad/README.md
+  7dba3fb3-1b7d-4d69-8038-751886353a8d 13
+docs/cookbooks/demo-playbook.md
+  7dba3fb3-1b7d-4d69-8038-751886353a8d 83,101
+docs/cookbooks/demo-playbook-cursor.md
+  7dba3fb3-1b7d-4d69-8038-751886353a8d 37-38,181
+examples/launchpad/pause-engine.chaos.yaml
+  7dba3fb3-1b7d-4d69-8038-751886353a8d 21,23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a283edc48ebf74f6443b9ead78d1af7d84fd9670",
+  "prompts": {
+    "94d95be267ec35fc": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "7dba3fb3-1b7d-4d69-8038-751886353a8d",
+        "model": "grok-4.6"
+      },
+      "human_author": "Karthik S <karthik.s@harness.io>",
+      "total_additions": 8,
+      "total_deletions": 8,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}
