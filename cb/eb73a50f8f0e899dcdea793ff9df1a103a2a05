@@ -1,0 +1,30 @@
+internal/mcp/cli.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 1-68
+AGENTS.md
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 56
+internal/mcp/tools.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 1-128
+internal/mcp/eval_test.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 3-6,9-36
+internal/mcp/eval.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 7-8,12-13,15-19,23-31,33-60,66-83,91-114,116,122-125,128-166
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "cbeb73a50f8f0e899dcdea793ff9df1a103a2a05",
+  "prompts": {
+    "fe8f14abd1484a66": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "c292bb84-b4c5-4933-9dff-644fbf268a8b",
+        "model": "grok-4.6"
+      },
+      "human_author": "Karthik S <karthik.s@harness.io>",
+      "total_additions": 364,
+      "total_deletions": 140,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}
