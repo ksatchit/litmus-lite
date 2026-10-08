@@ -11,7 +11,7 @@ import (
 	"github.com/ksatchit/litmus-lite/internal/scenario"
 )
 
-func Run(ctx context.Context, bin string, load *scenario.LoadSpec) (json.RawMessage, string, error) {
+func Run(ctx context.Context, bin, baseDir string, load *scenario.LoadSpec) (json.RawMessage, string, error) {
 	if load == nil || load.Scenario == "" {
 		return nil, "", nil
 	}
@@ -22,10 +22,19 @@ func Run(ctx context.Context, bin string, load *scenario.LoadSpec) (json.RawMess
 	if err != nil {
 		return nil, "vegaload not on PATH; running chaos only", nil
 	}
+	scen := load.Scenario
+	if !filepath.IsAbs(scen) {
+		if baseDir != "" {
+			cand := filepath.Join(baseDir, scen)
+			if _, err := os.Stat(cand); err == nil {
+				scen = cand
+			}
+		}
+	}
 	outFile := filepath.Join(os.TempDir(), fmt.Sprintf("litmus-lite-load-%d.json", os.Getpid()))
 	args := []string{"run", "-output", "json", "-out", outFile}
 	args = append(args, load.Args...)
-	args = append(args, load.Scenario)
+	args = append(args, scen)
 	cmd := exec.CommandContext(ctx, path, args...)
 	b, err := cmd.CombinedOutput()
 	if err != nil {

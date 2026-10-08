@@ -15,7 +15,8 @@ import (
 )
 
 type Options struct {
-	LoadBin string // vegaload path; empty = look up PATH
+	LoadBin     string // vegaload path; empty = look up PATH
+	ScenarioDir string // directory of the *.chaos.yaml, for relative load: paths
 }
 
 func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Result, error) {
@@ -45,44 +46,6 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 		}
 	}
 
-	cont := append([]scenario.Probe{}, sc.Probes...)
-	for _, p := range cont {
-		if p.Mode != "continuous" && p.Mode != "on-chaos" && p.Mode != "" {
-			continue
-		}
-		p := p
-		interval, _ := time.ParseDuration(p.Interval)
-		if interval <= 0 {
-			interval = 200 * time.Millisecond
-		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			t := time.NewTicker(interval)
-			defer t.Stop()
-			for {
-				select {
-				case <-ctx.Done():
-					return
-				case <-stopProbes:
-					return
-				case <-t.C:
-					runProbe(p)
-				}
-			}
-		}()
-	}
-
-	steadyStart := time.Now()
-	select {
-	case <-ctx.Done():
-		close(stopProbes)
-		wg.Wait()
-		return res, ctx.Err()
-	case <-time.After(baseline):
-	}
-	injectStart := time.Now()
-
 	var running []faults.Running
 	var events []report.FaultEvent
 	defer func() {
@@ -98,6 +61,11 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 		}
 	}()
 
+	type pendingFault struct {
+		f   scenario.Fault
+		inj faults.Injector
+	}
+	var pending []pendingFault
 	for _, f := range sc.Faults {
 		inj, err := faults.Lookup(f.Kind)
 		if err != nil {
@@ -106,14 +74,84 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 		if err := inj.Validate(f); err != nil {
 			return res, err
 		}
+		early := false
+		if e, ok := inj.(faults.EarlyStarter); ok {
+			early = e.EarlyStart()
+		}
+		if !early {
+			pending = append(pending, pendingFault{f, inj})
+			continue
+		}
 		r, err := inj.Start(ctx, f)
+		if err != nil {
+			return res, err
+		}
+		if a, ok := r.(faults.Armable); ok {
+			a.Disarm()
+		}
+		running = append(running, r)
+		events = append(events, report.FaultEvent{
+			Name: f.Name, Kind: f.Kind, Tunables: f.Params, Intensity: r.Intensity(),
+		})
+	}
+
+	startProbes := func() {
+		for _, p := range sc.Probes {
+			if p.Mode != "continuous" && p.Mode != "on-chaos" && p.Mode != "" {
+				continue
+			}
+			p := p
+			interval, _ := time.ParseDuration(p.Interval)
+			if interval <= 0 {
+				interval = 200 * time.Millisecond
+			}
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				t := time.NewTicker(interval)
+				defer t.Stop()
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case <-stopProbes:
+						return
+					case <-t.C:
+						runProbe(p)
+					}
+				}
+			}()
+		}
+	}
+	startProbes()
+
+	steadyStart := time.Now()
+	select {
+	case <-ctx.Done():
+		close(stopProbes)
+		wg.Wait()
+		return res, ctx.Err()
+	case <-time.After(baseline):
+	}
+	injectStart := time.Now()
+	for _, p := range pending {
+		r, err := p.inj.Start(ctx, p.f)
 		if err != nil {
 			return res, err
 		}
 		running = append(running, r)
 		events = append(events, report.FaultEvent{
-			Name: f.Name, Kind: f.Kind, Start: time.Now(), Tunables: f.Params, Intensity: r.Intensity(),
+			Name: p.f.Name, Kind: p.f.Kind, Start: time.Now(), Tunables: p.f.Params, Intensity: r.Intensity(),
 		})
+	}
+	for i, r := range running {
+		if a, ok := r.(faults.Armable); ok {
+			a.Arm()
+		}
+		if events[i].Start.IsZero() {
+			events[i].Start = time.Now()
+		}
+		events[i].Intensity = r.Intensity()
 	}
 
 	var loadWG sync.WaitGroup
@@ -121,7 +159,7 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 		loadWG.Add(1)
 		go func() {
 			defer loadWG.Done()
-			raw, warn, err := compose.Run(ctx, opt.LoadBin, sc.Load)
+			raw, warn, err := compose.Run(ctx, opt.LoadBin, opt.ScenarioDir, sc.Load)
 			if warn != "" {
 				mu.Lock()
 				res.Warnings = append(res.Warnings, warn)
@@ -152,16 +190,21 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 	case <-time.After(maxDur):
 	}
 
-	for i := range running {
-		if err := running[i].Stop(); err != nil {
+	injectEnd := time.Now()
+	for i, r := range running {
+		if a, ok := r.(faults.Armable); ok {
+			a.Disarm()
+			events[i].End = injectEnd
+			events[i].Rollback = "ok"
+			continue
+		}
+		if err := r.Stop(); err != nil {
 			events[i].Rollback = "fail: " + err.Error()
 		} else {
 			events[i].Rollback = "ok"
 		}
 		events[i].End = time.Now()
 	}
-	running = nil
-	injectEnd := time.Now()
 
 	select {
 	case <-ctx.Done():
@@ -190,6 +233,10 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 	res.Phases = []report.Phase{phSteady, phInject, phRec}
 	res.Recovery = report.RecoveryTime(res.Probes, injectEnd)
 	res.TimeSeries = report.BucketSeries(res.StartedAt, res.Probes, events, recoverEnd)
+	if len(res.Load) > 0 {
+		shift := injectStart.Sub(res.StartedAt).Seconds()
+		res.TimeSeries = compose.MergeSeries(res.TimeSeries, res.Load, shift)
+	}
 	res.ObservedVsInjected = report.ObservedVsInjected(events, phInject)
 
 	for _, h := range sc.Hypotheses {

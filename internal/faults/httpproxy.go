@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ksatchit/litmus-lite/internal/scenario"
@@ -17,8 +18,9 @@ import (
 
 type httpProxy struct{}
 
-func (httpProxy) Name() string { return "http.latency" }
-func (httpProxy) OS() []string { return nil }
+func (httpProxy) Name() string     { return "http.latency" }
+func (httpProxy) OS() []string     { return nil }
+func (httpProxy) EarlyStart() bool { return true }
 
 func (httpProxy) Validate(f scenario.Fault) error {
 	if scenario.StringParam(f.Params, "listen") == "" {
@@ -39,8 +41,9 @@ func (h httpProxy) Start(ctx context.Context, f scenario.Fault) (Running, error)
 
 type statusInject struct{}
 
-func (statusInject) Name() string { return "http.status-inject" }
-func (statusInject) OS() []string { return nil }
+func (statusInject) Name() string     { return "http.status-inject" }
+func (statusInject) OS() []string     { return nil }
+func (statusInject) EarlyStart() bool { return true }
 func (statusInject) Validate(f scenario.Fault) error {
 	return httpProxy{}.Validate(f)
 }
@@ -50,8 +53,9 @@ func (statusInject) Start(ctx context.Context, f scenario.Fault) (Running, error
 
 type httpTimeout struct{}
 
-func (httpTimeout) Name() string { return "http.timeout" }
-func (httpTimeout) OS() []string { return nil }
+func (httpTimeout) Name() string     { return "http.timeout" }
+func (httpTimeout) OS() []string     { return nil }
+func (httpTimeout) EarlyStart() bool { return true }
 func (httpTimeout) Validate(f scenario.Fault) error {
 	return httpProxy{}.Validate(f)
 }
@@ -99,34 +103,38 @@ func startHTTPProxy(_ context.Context, f scenario.Fault) (Running, error) {
 		r.Host = u.Host
 	}
 
-	intensity := delay.Seconds() * 1000
-	if intensity == 0 && percent > 0 {
-		intensity = percent
-	}
-	if intensity == 0 && stall > 0 {
-		intensity = stall.Seconds() * 1000
+	run := &proxyRun{delay: delay, jitter: jitter, stall: stall, percent: percent, code: code}
+	run.armed.Store(true)
+	if delay > 0 {
+		run.intensity = delay.Seconds() * 1000
+	} else if percent > 0 {
+		run.intensity = percent
+	} else if stall > 0 {
+		run.intensity = stall.Seconds() * 1000
 	}
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if stall > 0 {
-			timer := time.NewTimer(stall)
-			select {
-			case <-r.Context().Done():
-				timer.Stop()
+		if run.armed.Load() {
+			if stall > 0 {
+				timer := time.NewTimer(stall)
+				select {
+				case <-r.Context().Done():
+					timer.Stop()
+					return
+				case <-timer.C:
+				}
+			}
+			if delay > 0 || jitter > 0 {
+				d := delay
+				if jitter > 0 {
+					d += time.Duration(rand.Int63n(int64(jitter) + 1))
+				}
+				time.Sleep(d)
+			}
+			if percent > 0 && rand.Float64()*100 < percent {
+				http.Error(w, "litmus-lite injected status", code)
 				return
-			case <-timer.C:
 			}
-		}
-		if delay > 0 || jitter > 0 {
-			d := delay
-			if jitter > 0 {
-				d += time.Duration(rand.Int63n(int64(jitter) + 1))
-			}
-			time.Sleep(d)
-		}
-		if percent > 0 && rand.Float64()*100 < percent {
-			http.Error(w, "litmus-lite injected status", code)
-			return
 		}
 		proxy.ServeHTTP(w, r)
 	})
@@ -142,16 +150,39 @@ func startHTTPProxy(_ context.Context, f scenario.Fault) (Running, error) {
 		defer wg.Done()
 		_ = srv.Serve(ln)
 	}()
+	run.stop = func() error {
+		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer cancel()
+		err := srv.Shutdown(ctx)
+		_ = ln.Close()
+		wg.Wait()
+		return err
+	}
+	return run, nil
+}
 
-	return stopPair{
-		intensity: intensity,
-		stop: func() error {
-			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-			defer cancel()
-			err := srv.Shutdown(ctx)
-			_ = ln.Close()
-			wg.Wait()
-			return err
-		},
-	}, nil
+type proxyRun struct {
+	armed     atomic.Bool
+	delay     time.Duration
+	jitter    time.Duration
+	stall     time.Duration
+	percent   float64
+	code      int
+	intensity float64
+	stop      func() error
+}
+
+func (p *proxyRun) Intensity() float64 {
+	if !p.armed.Load() {
+		return 0
+	}
+	return p.intensity
+}
+func (p *proxyRun) Arm()    { p.armed.Store(true) }
+func (p *proxyRun) Disarm() { p.armed.Store(false) }
+func (p *proxyRun) Stop() error {
+	if p.stop != nil {
+		return p.stop()
+	}
+	return nil
 }

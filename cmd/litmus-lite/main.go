@@ -193,7 +193,7 @@ func cmdRun(args []string) int {
 		printErr(*outFmt, err)
 		return 2
 	}
-	res, err := engine.Run(context.Background(), sc, engine.Options{})
+	res, err := engine.Run(context.Background(), sc, engine.Options{ScenarioDir: filepath.Dir(file)})
 	if err != nil {
 		printErr(*outFmt, err)
 		audit.Append(audit.Line{Command: "run", File: file})

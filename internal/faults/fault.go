@@ -22,6 +22,18 @@ type Running interface {
 	Stop() error
 }
 
+// Armable injectors listen (or attach) on Start but only apply the fault
+// between Arm and Disarm, so probes can use the listen address in steady/recover.
+type Armable interface {
+	Arm()
+	Disarm()
+}
+
+// EarlyStarter is started before the baseline window (HTTP proxy listen).
+type EarlyStarter interface {
+	EarlyStart() bool
+}
+
 type intensityFunc func() float64
 
 func (f intensityFunc) Intensity() float64 { return f() }
