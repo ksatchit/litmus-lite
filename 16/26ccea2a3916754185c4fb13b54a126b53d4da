@@ -1,0 +1,40 @@
+internal/faults/process_windows_test.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 1-19
+internal/safety/safety_test.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 81-105
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 80
+internal/hub/hub.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 174-204
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 172-173
+internal/hub/hub_test.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 6,28-41
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 42
+AGENTS.md
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 55
+internal/faults/process_unix_test.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 1-73
+internal/faults/process_unix.go
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 7,12,14,63-67,79-81,87-109,113-116,120-131
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 132-133
+README.md
+  c292bb84-b4c5-4933-9dff-644fbf268a8b 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1626ccea2a3916754185c4fb13b54a126b53d4da",
+  "prompts": {
+    "fe8f14abd1484a66": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "c292bb84-b4c5-4933-9dff-644fbf268a8b",
+        "model": "grok-4.6"
+      },
+      "human_author": "Karthik S <karthik.s@harness.io>",
+      "total_additions": 244,
+      "total_deletions": 32,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}
