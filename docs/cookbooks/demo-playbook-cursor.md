@@ -1,6 +1,6 @@
 # Demo playbook — Cursor-first (the wow)
 
-This is the agent-native walkthrough. The terminal playbook is [`demo-playbook.md`](demo-playbook.md). Use **this** one in the room if you want the “ask Cursor, it writes the file and runs it” beat. Keep the terminal guide as backup if MCP misbehaves.
+This is the agent-native walkthrough. The terminal playbook is [`demo-playbook.md`](demo-playbook.md). Use **this** one in the room if you want the “ask Cursor, it writes the file and runs it” beat. Keep the terminal guide as backup if MCP misbehaves. Mode B failpoints (cashier, not LaunchPad) are [`demo-playbook-failpoint.md`](demo-playbook-failpoint.md).
 
 **Same machine rules:** LaunchPad already running (`engine` `:7070`, `missioncontrol` `:8080`). VegaLoad and Prometheus are optional. Do not open Grafana.
 

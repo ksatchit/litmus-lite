@@ -42,7 +42,7 @@ func TestImportProcessKill(t *testing.T) {
 
 func TestImportPhase2(t *testing.T) {
 	dir := t.TempDir()
-	for _, id := range []string{"docker.pause", "cpu.hog", "memory.hog", "disk.fill"} {
+	for _, id := range []string{"docker.pause", "cpu.hog", "memory.hog", "disk.fill", "failpoint"} {
 		p, err := Import(id, dir, "")
 		if err != nil {
 			t.Fatal(err)

@@ -36,6 +36,7 @@ If a proposed change breaks any of these, stop and flag it.
 - **Hosts / doctor** (`internal/hosts`, `internal/doctor`): `init` and `doctor` share host paths.
 - **Compose** (`internal/compose`): load-generator CLI exec + normalized series merge (`vegaload`, `k6`, `command`).
 - **move-to** (`internal/moveto`): IR and adapters. Core engine has zero awareness of Litmus SaaS or Harness.
+- **Failpoint** (`failpoint`): Go SDK (`Delay`, `Fail`, `Panic`). Off unless `LITMUS_LITE_FAILPOINT` lists the name. `UseWindow` keeps hooks dark until a scenario arms them. The `failpoint` fault POSTs to the app; it does not import the SDK. Sample app: `examples/cashier`.
 
 ## Conventions
 
@@ -52,7 +53,7 @@ If a proposed change breaks any of these, stop and flag it.
 - `litmus-lite validate FILE`
 - `litmus-lite run FILE` — `-out`, `-allow-target`, `-allow-pid`, `-yes`, `-output json`
 - `litmus-lite diagnose FILE.json`
-- `litmus-lite hub list` / `hub import ID -beside DIR` — HTTP, process, docker.pause, cpu.hog, memory.hog, disk.fill; optional `.litmus-lite/hub.lock` (embedded IDs win)
+- `litmus-lite hub list` / `hub import ID -beside DIR` — HTTP, process, docker.pause, cpu.hog, memory.hog, disk.fill, failpoint; optional `.litmus-lite/hub.lock` (embedded IDs win)
 - `litmus-lite run FILE` — `-junit FILE` writes optional JUnit XML
 - `litmus-lite init` / `doctor` / `mcp serve` / `mcp eval` (fixtures exec the CLI)
 - `litmus-lite compare BASE CAND`

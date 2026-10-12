@@ -44,6 +44,13 @@ func Check(s *scenario.Scenario, opt Options) error {
 		if err := checkProcessTarget(f, opt.AllowPIDs); err != nil {
 			return err
 		}
+		if f.Kind == "failpoint" {
+			if raw := scenario.StringParam(f.Params, "url"); raw != "" {
+				if err := hostAllowed(raw, opt.AllowTargets); err != nil {
+					return fmt.Errorf("fault %s: %w", f.Name, err)
+				}
+			}
+		}
 	}
 	if max > DefaultMaxDuration && !opt.Yes {
 		return fmt.Errorf("fault duration %s exceeds default cap %s (pass -yes)", max, DefaultMaxDuration)

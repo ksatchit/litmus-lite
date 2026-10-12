@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ksatchit/litmus-lite/failpoint"
 	"github.com/ksatchit/litmus-lite/internal/faults"
 	"github.com/ksatchit/litmus-lite/internal/report"
 	"github.com/ksatchit/litmus-lite/internal/scenario"
@@ -272,6 +273,98 @@ func TestLoadCommandMergesRPS(t *testing.T) {
 		}
 	}
 	t.Fatalf("load series missing from %+v", res.TimeSeries)
+}
+
+func TestFailpointArmsDuringInject(t *testing.T) {
+	t.Setenv("LITMUS_LITE_FAILPOINT", "charge")
+	t.Setenv("LITMUS_LITE_FAILPOINT_TOKEN", "cashier-demo")
+	mux := http.NewServeMux()
+	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200)
+	})
+	mux.HandleFunc("/charge", func(w http.ResponseWriter, r *http.Request) {
+		if err := failpoint.Fail("charge"); err != nil {
+			http.Error(w, err.Error(), http.StatusServiceUnavailable)
+			return
+		}
+		w.WriteHeader(200)
+	})
+	mux.Handle("/_litmus/failpoint", failpoint.Handler())
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	yaml := fmt.Sprintf(`
+apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata: { name: cashier-charge }
+baseline: 400ms
+recover: 800ms
+steadyState:
+  - name: healthz
+    type: http
+    url: %s/healthz
+    expect: { status: 200 }
+faults:
+  - name: charge-fails
+    kind: failpoint
+    duration: 1s
+    params:
+      url: %s/_litmus/failpoint
+      name: charge
+      token: cashier-demo
+probes:
+  - name: charge
+    type: http
+    url: %s/charge
+    interval: 80ms
+    timeout: 1s
+    expect: { status: 200 }
+hypotheses:
+  - name: hook-landed
+    metric: error_rate
+    operator: ">"
+    value: "50%%"
+  - name: recovers
+    metric: recovery
+    operator: <=
+    value: 5s
+`, srv.URL, srv.URL, srv.URL)
+	sc, err := scenario.Parse([]byte(yaml))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+	defer cancel()
+	res, err := Run(ctx, sc, Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !res.Passed {
+		t.Fatalf("hypotheses %+v", res.Hypotheses)
+	}
+	var steady, inject, rec report.Phase
+	for _, p := range res.Phases {
+		switch p.Name {
+		case "steady":
+			steady = p
+		case "inject":
+			inject = p
+		case "recover":
+			rec = p
+		}
+	}
+	if steady.Samples == 0 || steady.ErrorRate > 0 {
+		t.Fatalf("steady %+v", steady)
+	}
+	if inject.ErrorRate < 0.5 {
+		t.Fatalf("inject %+v", inject)
+	}
+	if rec.Samples == 0 || rec.ErrorRate > 0.5 {
+		t.Fatalf("recover %+v", rec)
+	}
+	if len(res.FaultLog) != 1 || res.FaultLog[0].Rollback != "ok" || res.FaultLog[0].Kind != "failpoint" {
+		t.Fatalf("fault log %+v", res.FaultLog)
+	}
 }
 
 func TestHypothesisFail(t *testing.T) {

@@ -85,4 +85,5 @@ func init() {
 	Register(cpuHog{})
 	Register(memoryHog{})
 	Register(diskFill{})
+	Register(failpointFault{})
 }

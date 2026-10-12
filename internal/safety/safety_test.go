@@ -204,3 +204,57 @@ probes:
 		t.Fatal(err)
 	}
 }
+
+func TestFailpointURLHost(t *testing.T) {
+	remote := `
+apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata: { name: t }
+faults:
+  - name: charge-fails
+    kind: failpoint
+    duration: 2s
+    params:
+      url: http://example.com/_litmus/failpoint
+      name: charge
+      token: cashier-demo
+probes:
+  - name: p
+    type: http
+    url: http://127.0.0.1:8091/charge
+`
+	s, err := scenario.Parse([]byte(remote))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Check(s, Options{}); err == nil {
+		t.Fatal("remote failpoint url must be refused")
+	}
+	if err := Check(s, Options{AllowTargets: []string{"example.com"}}); err != nil {
+		t.Fatal(err)
+	}
+	local := `
+apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata: { name: t }
+faults:
+  - name: charge-fails
+    kind: failpoint
+    duration: 2s
+    params:
+      url: http://127.0.0.1:8091/_litmus/failpoint
+      name: charge
+      token: cashier-demo
+probes:
+  - name: p
+    type: http
+    url: http://127.0.0.1:8091/charge
+`
+	s, err = scenario.Parse([]byte(local))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := Check(s, Options{}); err != nil {
+		t.Fatal(err)
+	}
+}

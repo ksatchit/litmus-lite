@@ -1,0 +1,43 @@
+# Same process as charge.chaos.yaml. Arms charge-slow (500ms in examples/cashier) instead of charge.
+# LITMUS_LITE_FAILPOINT must include charge-slow. LITMUS_LITE_FAILPOINT_TOKEN=cashier-demo.
+apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata:
+  name: cashier-charge-slow
+target:
+  kind: http
+  baseUrl: http://127.0.0.1:8091
+baseline: 3s
+recover: 4s
+steadyState:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8091/healthz
+    expect: { status: 200 }
+    mode: SOT
+faults:
+  - name: charge-slows
+    kind: failpoint
+    duration: 6s
+    params:
+      url: http://127.0.0.1:8091/_litmus/failpoint
+      name: charge-slow
+      token: cashier-demo
+probes:
+  - name: charge
+    type: http
+    url: http://127.0.0.1:8091/charge
+    interval: 300ms
+    timeout: 2s
+    mode: continuous
+    expect: { status: 200 }
+hypotheses:
+  - name: latency-landed
+    metric: p95
+    operator: ">"
+    value: 200ms
+  - name: recovers
+    metric: recovery
+    operator: <=
+    value: 5s
+rollback: always

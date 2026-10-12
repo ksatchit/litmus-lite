@@ -1,6 +1,6 @@
 # Demo playbook — LaunchPad + litmus-lite (terminal)
 
-Repeatable **CLI** walkthrough. The Cursor-first wow (ask the agent, it writes the file) is [`demo-playbook-cursor.md`](demo-playbook-cursor.md). Load + chaos is [`demo-playbook-vegaload.md`](demo-playbook-vegaload.md). Scenario intent and expected outcomes live in the Cursor catalog plus the VegaLoad playbook; this file is the keyboard path.
+Repeatable **CLI** walkthrough. The Cursor-first wow (ask the agent, it writes the file) is [`demo-playbook-cursor.md`](demo-playbook-cursor.md). Load + chaos is [`demo-playbook-vegaload.md`](demo-playbook-vegaload.md). Mode B failpoints use cashier, not LaunchPad: [`demo-playbook-failpoint.md`](demo-playbook-failpoint.md). Scenario intent and expected outcomes live in the Cursor catalog plus the VegaLoad playbook; this file is the keyboard path.
 
 Default machine: macOS or Linux, Go 1.22+, this repo and a LaunchPad checkout. VegaLoad and Prometheus are optional.
 
@@ -124,7 +124,9 @@ Talk to the phase table (steady / inject / recover), not a single score.
 
 **move-to:** `./litmus-lite move-to -adapter litmus examples/launchpad/ignite.chaos.yaml` — show YAML, note there is no ChaosEngine string. `-adapter ir` is the vendor-neutral JSON.
 
-**Hub list:** `./litmus-lite hub list` — HTTP, process, docker.pause, cpu.hog, memory.hog, disk.fill.
+**Hub list:** `./litmus-lite hub list` — HTTP, process, docker.pause, cpu.hog, memory.hog, disk.fill, failpoint.
+
+**Mode B failpoint:** [`demo-playbook-failpoint.md`](demo-playbook-failpoint.md). Start `examples/cashier` on `:8091`. Leave LaunchPad running only if you still want it; cashier does not call it.
 
 **Do not demo live:** `process.kill` on a shared engine, `disk.fill` on a real disk, or Docker pause unless a named throwaway container is already running.
 

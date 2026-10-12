@@ -321,6 +321,54 @@ probes:
 rollback: always
 `,
 	},
+	{
+		ID: "failpoint", Title: "Failpoint", Kind: "failpoint", OS: []string{"linux", "darwin", "windows"},
+		Summary: "Arm a named Go failpoint for the inject window, then disarm it. The process must allowlist the name and share the token.",
+		Template: `# Start examples/cashier with LITMUS_LITE_FAILPOINT=charge,charge-slow and LITMUS_LITE_FAILPOINT_TOKEN=cashier-demo.
+# The token below must match that process. Hooks stay off until this run arms them.
+apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata:
+  name: cashier-charge
+target:
+  kind: http
+  baseUrl: http://127.0.0.1:8091
+baseline: 3s
+recover: 4s
+steadyState:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8091/healthz
+    expect: { status: 200 }
+    mode: SOT
+faults:
+  - name: charge-fails
+    kind: failpoint
+    duration: 8s
+    params:
+      url: http://127.0.0.1:8091/_litmus/failpoint
+      name: charge
+      token: cashier-demo
+probes:
+  - name: charge
+    type: http
+    url: http://127.0.0.1:8091/charge
+    interval: 200ms
+    timeout: 1s
+    mode: continuous
+    expect: { status: 200 }
+hypotheses:
+  - name: hook-landed
+    metric: error_rate
+    operator: ">"
+    value: "50%"
+  - name: recovers
+    metric: recovery
+    operator: <=
+    value: 5s
+rollback: always
+`,
+	},
 }
 
 func List() []Item {

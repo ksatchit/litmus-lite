@@ -292,6 +292,8 @@ func IntensityText(f FaultEvent) string {
 		return fmt.Sprintf("%.0f workers", f.Intensity)
 	case "process.pause", "process.kill", "docker.pause":
 		return "applied"
+	case "failpoint":
+		return "hook armed"
 	default:
 		return fmt.Sprintf("%.0f", f.Intensity)
 	}
