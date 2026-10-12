@@ -1,0 +1,28 @@
+docs/README.md
+  h_3635f091213b66 6-7
+docs/ROADMAP.md
+  h_3635f091213b66 1-11
+internal/faults/docker.go
+  h_3635f091213b66 17-23
+internal/faults/fault.go
+  h_3635f091213b66 12-19
+internal/faults/httpproxy.go
+  h_3635f091213b66 81-85
+internal/hub/hub.go
+  h_3635f091213b66 10-24
+internal/hub/remote.go
+  h_3635f091213b66 16-40,153-155
+internal/scenario/scenario.go
+  h_3635f091213b66 146-152
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7b812e4782b7e6517afb367181b683a9b56eea19",
+  "prompts": {},
+  "humans": {
+    "h_3635f091213b66": {
+      "author": "Karthik S <karthik.s@harness.io>"
+    }
+  }
+}
