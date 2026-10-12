@@ -1,0 +1,25 @@
+internal/mcp/eval_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 31-40
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 41
+internal/mcp/cli.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 8,36,48-57
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "39aec49be709844e90300ec39696bd6e3cccaf0a",
+  "prompts": {
+    "b75fd3d938983717": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "0aff4471-2e31-454a-9bfb-4fff22ac2ed3",
+        "model": "grok-4.7"
+      },
+      "human_author": "Karthik S <karthik.s@harness.io>",
+      "total_additions": 22,
+      "total_deletions": 2,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}
