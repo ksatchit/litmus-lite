@@ -28,6 +28,17 @@ func TestEvalSuite(t *testing.T) {
 	}
 }
 
+func TestEvalCLIDestWindowsExe(t *testing.T) {
+	win := evalCLIDest(5112, "windows")
+	if !strings.HasSuffix(win, "litmus-lite-mcp-eval-5112.exe") {
+		t.Fatal(win)
+	}
+	unix := evalCLIDest(5112, "linux")
+	if strings.HasSuffix(unix, ".exe") || !strings.HasSuffix(unix, "litmus-lite-mcp-eval-5112") {
+		t.Fatal(unix)
+	}
+}
+
 func TestCLIArgsForwardSafetyFlags(t *testing.T) {
 	argv, err := cliArgs("run_test", map[string]any{
 		"file":         "a.chaos.yaml",

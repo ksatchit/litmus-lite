@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 )
@@ -32,7 +33,7 @@ func resolveCLI() (string, error) {
 			cliErr = err
 			return
 		}
-		dest := filepath.Join(os.TempDir(), fmt.Sprintf("litmus-lite-mcp-eval-%d", os.Getpid()))
+		dest := evalCLIDest(os.Getpid(), runtime.GOOS)
 		cmd := exec.Command("go", "build", "-o", dest, "./cmd/litmus-lite")
 		cmd.Dir = root
 		if out, err := cmd.CombinedOutput(); err != nil {
@@ -42,6 +43,16 @@ func resolveCLI() (string, error) {
 		cliPath = dest
 	})
 	return cliPath, cliErr
+}
+
+// evalCLIDest is the temp binary mcp eval builds when the current process
+// is a go test binary. Windows only executes a file whose name ends in .exe.
+func evalCLIDest(pid int, goos string) string {
+	dest := filepath.Join(os.TempDir(), fmt.Sprintf("litmus-lite-mcp-eval-%d", pid))
+	if goos == "windows" {
+		dest += ".exe"
+	}
+	return dest
 }
 
 func isGoTestBinary(path string) bool {
