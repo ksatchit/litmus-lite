@@ -7,6 +7,21 @@ import (
 	"strings"
 )
 
+// Item is one importable hub entry (a scenario template plus metadata).
+//
+// Two sources exist, and the difference matters for safety:
+//
+//   - Embedded (this file, the catalog var below): native fault kinds only,
+//     shipped inside the binary. The embedded catalog must NEVER contain an
+//     "exec" fault or an exec/cmd probe.
+//   - Git-pinned remote hub (remote.go, pinned by .litmus-lite/hub.lock): the
+//     only distribution channel for "exec" templates. A pin selects what can be
+//     imported; it never grants permission to run anything.
+//
+// TODO(exec-templates): add a unit test that fails if any embedded catalog
+// template contains kind: exec, type: exec, type: cmd, or "shell: true".
+// TODO(exec-templates): add a Requires field (binaries, docker, os, privileges)
+// so import/doctor can show what a template needs. See the spec's FR-XC-08.
 type Item struct {
 	ID       string   `json:"id"`
 	Title    string   `json:"title"`

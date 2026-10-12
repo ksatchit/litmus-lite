@@ -143,6 +143,13 @@ func (s *Scenario) Normalize() error {
 	return s.Validate()
 }
 
+// Validate checks the scenario's structure.
+//
+// TODO(strictness): fault params and probe expect maps are free-form
+// (map[string]any) and unknown keys are not reported. Planned: report unknown
+// keys as warnings for existing kinds (and as errors for new kinds), with a
+// -strict flag that turns warnings into errors. When existing kinds start
+// failing on unknown keys is deliberately deferred; revisit later.
 func (s *Scenario) Validate() error {
 	if s.APIVersion != APIVersion {
 		return fmt.Errorf("unsupported apiVersion %q (want %s)", s.APIVersion, APIVersion)

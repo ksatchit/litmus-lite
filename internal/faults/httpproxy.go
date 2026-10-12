@@ -78,6 +78,11 @@ func startHTTPProxy(_ context.Context, f scenario.Fault) (Running, error) {
 	if err != nil {
 		return nil, fmt.Errorf("upstream: %w", err)
 	}
+	// TODO(strictness): the three ParseDuration calls below discard their errors,
+	// so a malformed value (for example delay: 800, missing the unit) silently
+	// injects nothing. These should fail validation instead. Unknown param keys
+	// for this existing kind stay warnings for now; the point at which they become
+	// errors is deferred and will be revisited.
 	delay, _ := time.ParseDuration(scenario.StringParam(f.Params, "delay"))
 	jitter, _ := time.ParseDuration(scenario.StringParam(f.Params, "jitter"))
 	stall, _ := time.ParseDuration(scenario.StringParam(f.Params, "timeout"))

@@ -13,6 +13,31 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Remote hub model (read this before changing anything in this file)
+//
+// The remote hub is a git repository pinned by .litmus-lite/hub.lock
+// (repo + ref + optional path) whose catalog.yaml lists importable scenario
+// templates. It is the ONLY place "exec" templates (user-defined commands used
+// as faults or probes) are distributed; the embedded catalog is native-only.
+//
+// Invariants to preserve:
+//
+//  1. Importing a template only writes a *.chaos.yaml file. Nothing in this
+//     package may execute template content, ever.
+//  2. A pin never grants execution. Whether a command may run is decided later,
+//     at validate/run time, by the human-owned allowlist (exec.allow in
+//     .litmus-lite/config.yaml or -allow-exec). See the spec's SR-EXEC-01..05.
+//  3. Embedded IDs always win over a remote item with the same ID, so a pinned
+//     repo cannot shadow a native fault template.
+//  4. Fetches are cached per (repo, ref, path); pin refs to a tag or commit to
+//     make an audit meaningful.
+//
+// TODO(exec-templates): when parsing items, surface exec content and the
+// template's declared requirements (binaries, docker, os) at import time so the
+// human sees exactly which commands a template would run before allowlisting.
+// TODO(exec-templates): document the pin format, trust model, and how to publish
+// and audit a template in a cookbook (spec FR-EXEC-16).
+
 // Lock is the pin in .litmus-lite/hub.lock. Absent lock means embedded-only (no git).
 type Lock struct {
 	Repo string `yaml:"repo" json:"repo"`
@@ -125,6 +150,9 @@ func cacheKey(lock Lock) string {
 	return hex.EncodeToString(sum[:])[:16]
 }
 
+// loadRemoteCatalog parses catalog.yaml from a synced remote hub checkout.
+// It only reads data; template text is returned verbatim as Item.Template and
+// is never interpreted here (see the model notes at the top of this file).
 func loadRemoteCatalog(root string) ([]Item, error) {
 	b, err := os.ReadFile(filepath.Join(root, "catalog.yaml"))
 	if err != nil {

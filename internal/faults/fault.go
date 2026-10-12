@@ -9,6 +9,14 @@ import (
 )
 
 // Injector is one fault kind. Start must be reversible by Stop.
+//
+// TODO(strictness): Validate currently checks only the params an injector cares
+// about and ignores unknown keys, so a typo such as "dealy" silently does
+// nothing. Planned: each injector declares a parameter schema (name, type,
+// required, default, range) that validate/run check generically. For EXISTING
+// kinds an unknown key stays a WARNING for now; when it becomes an error is
+// deliberately undecided and will be revisited. NEW kinds should reject unknown
+// keys from day one. Keep this note in sync with the spec's FR-XC-01/FR-XC-02.
 type Injector interface {
 	Name() string
 	OS() []string // empty means all
