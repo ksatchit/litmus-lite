@@ -1,0 +1,16 @@
+docs/ROADMAP.md
+  h_3635f091213b66 12-17
+internal/safety/safety.go
+  h_3635f091213b66 39-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "2d55227d47aa6f2ff890d22727574a725dbf9bce",
+  "prompts": {},
+  "humans": {
+    "h_3635f091213b66": {
+      "author": "Karthik S <karthik.s@harness.io>"
+    }
+  }
+}
