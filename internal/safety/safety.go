@@ -36,6 +36,14 @@ func Check(s *scenario.Scenario, opt Options) error {
 				return err
 			}
 		}
+		// TODO(non-loopback-listen): today a non-loopback listen address is accepted
+		// if it appears in -allow-target. The documented intent is that host proxies
+		// stay loopback-only. Containerized apps are to be served by a Docker
+		// sidecar proxy instead. Reaching the proxy from VMs, WSL2, local Kubernetes
+		// or LAN devices is a deferred alternative: a guarded non-loopback bind that
+		// needs -yes, an explicit address and a mandatory allowFrom CIDR list
+		// enforced at accept time. See docs/ROADMAP.md. Revisit this check when
+		// either is built.
 		if listen := scenario.StringParam(f.Params, "listen"); listen != "" {
 			if err := hostAllowed(listen, opt.AllowTargets); err != nil {
 				return err
