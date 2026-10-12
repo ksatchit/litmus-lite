@@ -1,0 +1,66 @@
+internal/faults/failpoint_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-86
+internal/faults/failpoint.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-102
+examples/cashier/charge-slow.chaos.yaml
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-43
+internal/safety/safety.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 47-53
+examples/cashier/README.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-13
+internal/hub/hub.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 324-369
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 322-323
+docs/cookbooks/demo-playbook-failpoint.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-185
+docs/cookbooks/demo-playbook.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 3,127-129
+failpoint/failpoint.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-10,16,20-93,99-100,107-117,119,122-127,129,132,134,137-144
+failpoint/control.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-89
+AGENTS.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 39,56
+failpoint/failpoint_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 4-8,13-18,20,25,28-29,38-180
+docs/cookbooks/demo-playbook-cursor.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 3
+internal/engine/engine_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 15,278-369
+internal/hub/hub_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 45
+internal/report/result.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 295-296
+README.md
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 11
+internal/faults/fault.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 88
+internal/hosts/hosts.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 36
+internal/safety/safety_test.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 208-260
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 207
+examples/cashier/charge.chaos.yaml
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-45
+examples/cashier/main.go
+  0aff4471-2e31-454a-9bfb-4fff22ac2ed3 1-69
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "7bde6a0689e22716c404cf15c482c1a6130828c7",
+  "prompts": {
+    "b75fd3d938983717": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "0aff4471-2e31-454a-9bfb-4fff22ac2ed3",
+        "model": "grok-4.7"
+      },
+      "human_author": "Karthik S <karthik.s@harness.io>",
+      "total_additions": 1194,
+      "total_deletions": 101,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    }
+  }
+}
