@@ -29,6 +29,10 @@ func Serve(in io.Reader, out io.Writer) error {
 			}
 			return err
 		}
+		// JSON-RPC notifications carry no id and must not receive a response.
+		if len(r.ID) == 0 {
+			continue
+		}
 		resp := handle(r)
 		enc := json.NewEncoder(out)
 		if err := enc.Encode(resp); err != nil {
@@ -45,8 +49,6 @@ func handle(r req) map[string]any {
 			"capabilities":    map[string]any{"tools": map[string]any{}},
 			"serverInfo":      map[string]any{"name": "litmus-lite", "version": "0.1.0-dev"},
 		})
-	case "notifications/initialized", "initialized":
-		return map[string]any{"jsonrpc": "2.0"}
 	case "tools/list":
 		return ok(r.ID, map[string]any{"tools": toolDefs()})
 	case "tools/call":
