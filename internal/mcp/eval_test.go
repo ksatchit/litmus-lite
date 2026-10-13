@@ -1,6 +1,7 @@
 package mcp
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -72,5 +73,76 @@ func TestToolsHaveCLI(t *testing.T) {
 	}
 	if _, ok := toolByName("no_such_tool"); ok {
 		t.Fatal("unknown tool should not map")
+	}
+}
+
+// TestToolSchemasMatchCLIArgs keeps the advertised schemas honest: every
+// property a tool declares must change the CLI argv, and every required
+// property must be declared.
+func TestToolSchemasMatchCLIArgs(t *testing.T) {
+	for _, tl := range allTools() {
+		if tl.Desc == "" {
+			t.Errorf("%s: empty description", tl.Name)
+		}
+		for _, r := range tl.Required {
+			if _, ok := tl.Props[r]; !ok {
+				t.Errorf("%s: required %q is not a declared property", tl.Name, r)
+			}
+		}
+		if tl.ReadFile {
+			continue
+		}
+		args := map[string]any{}
+		for name, raw := range tl.Props {
+			if raw.(map[string]any)["type"] == "boolean" {
+				args[name] = true
+			} else {
+				args[name] = "S_" + name
+			}
+		}
+		argv, err := cliArgs(tl.Name, args)
+		if err != nil {
+			t.Fatalf("%s: %v", tl.Name, err)
+		}
+		got := strings.Join(argv, " ")
+		for name, raw := range tl.Props {
+			want := "S_" + name
+			if raw.(map[string]any)["type"] == "boolean" {
+				want = "-" + name
+			}
+			if !strings.Contains(got, want) {
+				t.Errorf("%s: property %q is advertised but not forwarded to the CLI (%s)", tl.Name, name, got)
+			}
+		}
+	}
+}
+
+func TestToolDefsAdvertiseSchemas(t *testing.T) {
+	for _, d := range toolDefs() {
+		schema, ok := d["inputSchema"].(map[string]any)
+		if !ok || schema["type"] != "object" {
+			t.Fatalf("%v: inputSchema must be an object schema", d["name"])
+		}
+		if _, ok := schema["properties"].(map[string]any); !ok {
+			t.Fatalf("%v: inputSchema.properties missing", d["name"])
+		}
+	}
+	argv, err := cliArgs("hub_import", map[string]any{"id": "http.status-inject", "beside": "d", "name": "n"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.Join(argv, " "); !strings.Contains(got, "-name n") || !strings.HasSuffix(got, "http.status-inject") {
+		t.Fatal(got)
+	}
+}
+
+func TestInitializeReportsVersion(t *testing.T) {
+	old := Version
+	Version = "9.9.9-test"
+	defer func() { Version = old }()
+	resp := handle(req{Method: "initialize"})
+	b, _ := json.Marshal(resp)
+	if !strings.Contains(string(b), `"version":"9.9.9-test"`) {
+		t.Fatal(string(b))
 	}
 }

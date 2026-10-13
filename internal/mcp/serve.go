@@ -7,6 +7,10 @@ import (
 	"io"
 )
 
+// Version is reported in the initialize response. The CLI sets it from its
+// release version before calling Serve.
+var Version = "dev"
+
 type req struct {
 	JSONRPC string          `json:"jsonrpc"`
 	ID      json.RawMessage `json:"id"`
@@ -47,7 +51,7 @@ func handle(r req) map[string]any {
 		return ok(r.ID, map[string]any{
 			"protocolVersion": "2024-11-05",
 			"capabilities":    map[string]any{"tools": map[string]any{}},
-			"serverInfo":      map[string]any{"name": "litmus-lite", "version": "0.1.0-dev"},
+			"serverInfo":      map[string]any{"name": "litmus-lite", "version": Version},
 		})
 	case "tools/list":
 		return ok(r.ID, map[string]any{"tools": toolDefs()})

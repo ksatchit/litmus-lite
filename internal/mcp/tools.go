@@ -9,23 +9,104 @@ import (
 
 // tool is one MCP tool. Every entry must map to a CLI the user can type
 // (get_results reads a file the CLI wrote; it is not an agent-only path).
+//
+// Desc, Props and Required are what tools/list advertises. They exist so an
+// agent can call a tool correctly on the first try instead of probing for
+// argument names. TestToolSchemasMatchCLIArgs keeps them in step with cliArgs.
 type tool struct {
 	Name     string
 	CLI      string // litmus-lite subcommand, empty when ReadFile
 	ReadFile bool
+	Desc     string
+	Props    map[string]any // argument name -> JSON Schema property
+	Required []string
+}
+
+func strArg(desc string) map[string]any {
+	return map[string]any{"type": "string", "description": desc}
+}
+
+func boolArg(desc string) map[string]any {
+	return map[string]any{"type": "boolean", "description": desc}
+}
+
+// safetyProps are the flags validate_scenario and run_test forward to the CLI.
+func safetyProps(extra map[string]any) map[string]any {
+	p := map[string]any{
+		"yes":          boolArg("Forward -yes: confirm a destructive fault (process.kill, disk.fill). Not needed for latency, status, timeout or pause faults."),
+		"allow-target": strArg("Forward -allow-target: comma-separated extra non-loopback hosts the scenario may touch."),
+		"allow-pid":    strArg("Forward -allow-pid: the one PID process.pause or process.kill may signal, for example \"4242\". Required for those faults; no other PID is signalled."),
+	}
+	for k, v := range extra {
+		p[k] = v
+	}
+	return p
 }
 
 func allTools() []tool {
 	return []tool{
-		{Name: "create_scenario", CLI: "new"},
-		{Name: "validate_scenario", CLI: "validate"},
-		{Name: "run_test", CLI: "run"},
-		{Name: "get_results", ReadFile: true},
-		{Name: "diagnose_failure", CLI: "diagnose"},
-		{Name: "list_faults", CLI: "hub"},
-		{Name: "hub_import", CLI: "hub"},
-		{Name: "compare_reports", CLI: "compare"},
-		{Name: "doctor", CLI: "doctor"},
+		{
+			Name: "create_scenario", CLI: "new",
+			Desc: "litmus-lite new: write a co-located http.latency scenario template (<name>.chaos.yaml) into a directory. Returns {\"path\": ...}. Edit the file afterwards to fit the test.",
+			Props: map[string]any{
+				"beside": strArg("Directory to write the scenario into, usually next to the service code (default \".\")."),
+				"name":   strArg("File stem without .chaos.yaml (default \"scenario\")."),
+			},
+		},
+		{
+			Name: "validate_scenario", CLI: "validate",
+			Desc:     "litmus-lite validate: check a scenario file and the safety rules without running it. Run this before run_test.",
+			Props:    safetyProps(map[string]any{"file": strArg("Path to the *.chaos.yaml file.")}),
+			Required: []string{"file"},
+		},
+		{
+			Name: "run_test", CLI: "run",
+			Desc: "litmus-lite run: execute a scenario (steady state, inject, recover) and write a JSON report and an overlay HTML report. Returns the report as JSON.",
+			Props: safetyProps(map[string]any{
+				"file": strArg("Path to the *.chaos.yaml file."),
+				"out":  strArg("Where to write the JSON report, for example report.json. Pass this path to diagnose_failure or get_results."),
+			}),
+			Required: []string{"file"},
+		},
+		{
+			Name: "get_results", ReadFile: true,
+			Desc:  "Read a report JSON file that run_test wrote.",
+			Props: map[string]any{"file": strArg("Path to the report JSON (default \"report.json\").")},
+		},
+		{
+			Name: "diagnose_failure", CLI: "diagnose",
+			Desc:     "litmus-lite diagnose: explain a report in terms of its hypotheses, phases and likely cause.",
+			Props:    map[string]any{"file": strArg("Path to the report JSON written by run_test.")},
+			Required: []string{"file"},
+		},
+		{
+			Name: "list_faults", CLI: "hub",
+			Desc: "litmus-lite hub list: list the fault kinds in the hub catalog. Takes no arguments.",
+		},
+		{
+			Name: "hub_import", CLI: "hub",
+			Desc: "litmus-lite hub import: write a hub scenario template (<name>.chaos.yaml) into a directory. Returns {\"path\": ...}. An existing file with the same name is overwritten, so pass name when importing the same id twice.",
+			Props: map[string]any{
+				"id":     strArg("Hub id from list_faults, for example http.latency, http.status-inject, http.timeout or process.pause."),
+				"beside": strArg("Directory to write into, usually next to the service code (default \".\")."),
+				"name":   strArg("File stem without .chaos.yaml (default: the id with dots replaced by dashes)."),
+			},
+			Required: []string{"id"},
+		},
+		{
+			Name: "compare_reports", CLI: "compare",
+			Desc: "litmus-lite compare: compare two report JSON files phase by phase (steady, inject, recover).",
+			Props: map[string]any{
+				"baseline":  strArg("Path to the baseline report JSON."),
+				"candidate": strArg("Path to the candidate report JSON."),
+			},
+			Required: []string{"baseline", "candidate"},
+		},
+		{
+			Name: "doctor", CLI: "doctor",
+			Desc:  "litmus-lite doctor: check the local environment (Cursor MCP setup, optional VegaLoad and Prometheus).",
+			Props: map[string]any{"file": strArg("Optional scenario file; also checks its load tool.")},
+		},
 	}
 }
 
@@ -50,23 +131,23 @@ func toolsHaveCLI() error {
 func toolDefs() []map[string]any {
 	var out []map[string]any
 	for _, t := range allTools() {
-		desc := "read a report JSON path"
-		if t.CLI != "" {
-			desc = "litmus-lite " + t.CLI
-			if t.Name == "list_faults" {
-				desc = "litmus-lite hub list"
-			}
-			if t.Name == "hub_import" {
-				desc = "litmus-lite hub import"
-			}
-			if t.Name == "validate_scenario" || t.Name == "run_test" {
-				desc += " (yes, allow-target, and allow-pid are forwarded)"
-			}
+		props := t.Props
+		if props == nil {
+			props = map[string]any{}
+		}
+		schema := map[string]any{
+			"type":       "object",
+			"properties": props,
+			// Unknown keys stay accepted (and ignored), as before this schema existed.
+			"additionalProperties": true,
+		}
+		if len(t.Required) > 0 {
+			schema["required"] = t.Required
 		}
 		out = append(out, map[string]any{
 			"name":        t.Name,
-			"description": desc,
-			"inputSchema": map[string]any{"type": "object", "additionalProperties": true},
+			"description": t.Desc,
+			"inputSchema": schema,
 		})
 	}
 	return out
@@ -112,7 +193,11 @@ func cliArgs(name string, args map[string]any) ([]string, error) {
 	case "list_faults":
 		return []string{"hub", "list", "-output", "json"}, nil
 	case "hub_import":
-		return []string{"hub", "import", "-beside", str("beside", "."), "-output", "json", str("id", "")}, nil
+		argv := []string{"hub", "import", "-beside", str("beside", "."), "-output", "json"}
+		if n := str("name", ""); n != "" {
+			argv = append(argv, "-name", n)
+		}
+		return append(argv, str("id", "")), nil
 	case "compare_reports":
 		return []string{"compare", "-output", "json", str("baseline", ""), str("candidate", "")}, nil
 	case "doctor":

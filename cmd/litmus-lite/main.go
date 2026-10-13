@@ -412,6 +412,7 @@ func cmdMCP(args []string) int {
 	}
 	switch args[0] {
 	case "serve":
+		mcp.Version = version
 		if err := mcp.Serve(os.Stdin, os.Stdout); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
