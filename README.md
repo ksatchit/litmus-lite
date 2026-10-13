@@ -12,16 +12,32 @@ Mode A Phase 0–2 is runnable: HTTP-proxy faults, process pause/kill, docker.pa
 
 ## Install
 
-Homebrew (macOS and Linux):
+### Homebrew (macOS and Linux)
 
 ```
 brew install --cask ksatchit/tap/litmus-lite
 litmus-lite version
 ```
 
-Prebuilt archives for Linux, macOS, and Windows are on the [releases page](https://github.com/ksatchit/litmus-lite/releases).
+Upgrade when a new release is out, or remove:
 
-From source:
+```
+brew update && brew upgrade --cask litmus-lite
+brew uninstall --cask litmus-lite
+```
+
+Notes:
+
+- It is a cask, so `--cask` is required. The tap (`ksatchit/homebrew-tap`) is added automatically on first install.
+- Binaries are not signed or notarized; the cask clears the macOS quarantine flag on install so Gatekeeper does not block it.
+- A local `go build` in the repo (`./litmus-lite`) does not conflict with the brew copy. `which -a litmus-lite` shows which one is on your `PATH`.
+- `litmus-lite init` records the absolute path of the binary that ran it in the editor's MCP config. Re-run `init` with the brew copy to switch a project over; the brew path stays the same across upgrades.
+
+### Prebuilt archives
+
+Linux, macOS, and Windows archives are on the [releases page](https://github.com/ksatchit/litmus-lite/releases).
+
+### From source
 
 ```
 git clone https://github.com/ksatchit/litmus-lite
