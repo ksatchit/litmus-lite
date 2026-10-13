@@ -26,7 +26,8 @@ import (
 	"github.com/ksatchit/litmus-lite/internal/scenario"
 )
 
-const version = "0.1.0-dev"
+// version is overridden at release time via -ldflags "-X main.version=...".
+var version = "0.1.0-dev"
 
 func main() {
 	os.Exit(run(os.Args))

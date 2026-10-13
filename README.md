@@ -12,6 +12,17 @@ Mode A Phase 0–2 is runnable: HTTP-proxy faults, process pause/kill, docker.pa
 
 ## Install
 
+Homebrew (macOS and Linux):
+
+```
+brew install --cask ksatchit/tap/litmus-lite
+litmus-lite version
+```
+
+Prebuilt archives for Linux, macOS, and Windows are on the [releases page](https://github.com/ksatchit/litmus-lite/releases).
+
+From source:
+
 ```
 git clone https://github.com/ksatchit/litmus-lite
 cd litmus-lite

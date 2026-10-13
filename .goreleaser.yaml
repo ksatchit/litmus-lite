@@ -1,0 +1,58 @@
+version: 2
+project_name: litmus-lite
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: litmus-lite
+    main: ./cmd/litmus-lite
+    binary: litmus-lite
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin, windows]
+    goarch: [amd64, arm64]
+    flags: [-trimpath]
+    ldflags:
+      - -s -w -X main.version={{ .Version }}
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+    files: [LICENSE, README.md]
+
+checksum:
+  name_template: checksums.txt
+
+changelog:
+  sort: asc
+  filters:
+    exclude: ["^docs:", "^test:"]
+
+homebrew_casks:
+  - name: litmus-lite
+    binaries: [litmus-lite]
+    directory: Casks
+    homepage: https://github.com/ksatchit/litmus-lite
+    description: Chaos testing for agentic developers — declarative *.chaos.yaml, no control plane
+    license: Apache-2.0
+    commit_author:
+      name: litmus-lite-release
+      email: noreply@github.com
+    commit_msg_template: "Bump {{ .ProjectName }} to {{ .Tag }}"
+    repository:
+      owner: ksatchit
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    # Binaries are not signed/notarized; clear Gatekeeper quarantine on install.
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/litmus-lite"]
+          end
