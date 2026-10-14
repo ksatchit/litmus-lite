@@ -169,11 +169,21 @@ func cmdValidate(args []string) int {
 	return 0
 }
 
+// htmlPathFor derives the HTML report path from the JSON report path by
+// swapping the extension, so "foo.json" pairs with "foo.html".
+func htmlPathFor(jsonPath string) string {
+	p := strings.TrimSuffix(jsonPath, filepath.Ext(jsonPath)) + ".html"
+	if p == jsonPath {
+		p += ".html"
+	}
+	return p
+}
+
 func cmdRun(args []string) int {
 	fs := flag.NewFlagSet("run", flag.ContinueOnError)
 	outFmt := outputFlag(fs)
 	outPath := fs.String("out", "report.json", "JSON report path")
-	htmlPath := fs.String("html", "report.html", "HTML report path")
+	htmlFlag := fs.String("html", "", "HTML report path (default: -out path with .html extension)")
 	junitPath := fs.String("junit", "", "optional JUnit XML path")
 	allow := fs.String("allow-target", "", "comma-separated extra hosts")
 	allowPID := fs.String("allow-pid", "", "comma-separated PIDs process faults may signal")
@@ -186,6 +196,10 @@ func cmdRun(args []string) int {
 		return 2
 	}
 	file := fs.Arg(0)
+	htmlPath := *htmlFlag
+	if htmlPath == "" {
+		htmlPath = htmlPathFor(*outPath)
+	}
 	sc, err := scenario.Load(file)
 	if err != nil {
 		printErr(*outFmt, err)
@@ -208,7 +222,7 @@ func cmdRun(args []string) int {
 		return 1
 	}
 	_ = report.WriteJSON(*outPath, res)
-	_ = report.WriteHTML(*htmlPath, res)
+	_ = report.WriteHTML(htmlPath, res)
 	if *junitPath != "" {
 		_ = report.WriteJUnit(*junitPath, res)
 	}
@@ -218,7 +232,7 @@ func cmdRun(args []string) int {
 		b, _ := json.MarshalIndent(res, "", "  ")
 		fmt.Println(string(b))
 	} else {
-		fmt.Printf("%s passed=%v hypotheses=%d report=%s html=%s\n", res.Name, res.Passed, len(res.Hypotheses), *outPath, *htmlPath)
+		fmt.Printf("%s passed=%v hypotheses=%d report=%s html=%s\n", res.Name, res.Passed, len(res.Hypotheses), *outPath, htmlPath)
 		if len(res.Warnings) > 0 {
 			fmt.Println(strings.Join(res.Warnings, "\n"))
 		}
