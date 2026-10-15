@@ -45,7 +45,7 @@ Litmus-lite is chaos at the developer desk. The test is a `*.chaos.yaml` next to
 
 ## 2. Beat A — HTTP latency on LaunchPad (Phase 0, required)
 
-**Intent:** slow + flaky HTTP hop in front of missioncontrol. **Expect:** p95 tracks ~800ms, errors under 15%, recover ≤ 5s. Full catalog: [Cursor playbook](demo-playbook-cursor.md#scenario-catalog--intent-and-expectation).
+**Intent:** slow + flaky HTTP hop in front of missioncontrol. **Expect:** p95 tracks ~800ms, errors under 25%, recover ≤ 5s. Full catalog: [Cursor playbook](demo-playbook-cursor.md#scenario-catalog--intent-and-expectation).
 
 ```
 ./litmus-lite run examples/launchpad/ignite.chaos.yaml

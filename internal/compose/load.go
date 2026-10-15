@@ -117,10 +117,34 @@ func resolveBin(baseDir, name, override string) (string, error) {
 		}
 	}
 	path, err := exec.LookPath(name)
-	if err != nil {
-		return "", err
+	if err == nil {
+		return path, nil
 	}
-	return path, nil
+	// Not on PATH: look next to this executable. A GUI app such as an editor
+	// often starts the MCP server with a short PATH, and two tools installed
+	// into one folder should find each other either way.
+	if dir := executableDir(); dir != "" && !strings.ContainsAny(name, `/\`) {
+		for _, cand := range []string{name, name + ".exe"} {
+			p := filepath.Join(dir, cand)
+			if st, serr := os.Stat(p); serr == nil && !st.IsDir() {
+				return p, nil
+			}
+		}
+	}
+	return "", err
+}
+
+// executableDir is the folder of the running litmus-lite binary. It is a
+// variable so that tests can point it elsewhere.
+var executableDir = func() string {
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	if real, err := filepath.EvalSymlinks(exe); err == nil {
+		exe = real
+	}
+	return filepath.Dir(exe)
 }
 
 func resolveScenario(baseDir, scen string) (string, error) {

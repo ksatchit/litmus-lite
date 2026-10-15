@@ -87,3 +87,30 @@ func TestTailWithNoFileStopsCleanly(t *testing.T) {
 		t.Fatal("no file, no points")
 	}
 }
+
+// A generator that is not on PATH is found next to the litmus-lite binary, so
+// an editor that starts the MCP server with a short PATH still runs the load.
+func TestGeneratorIsFoundNextToTheBinary(t *testing.T) {
+	dir := t.TempDir()
+	name := "litmus-lite-test-generator"
+	if err := os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", "/usr/bin:/bin")
+	old := executableDir
+	defer func() { executableDir = old }()
+
+	executableDir = func() string { return t.TempDir() } // an empty folder
+	if _, err := resolveBin("", name, ""); err == nil {
+		t.Fatal("found a generator that is nowhere")
+	}
+	executableDir = func() string { return dir }
+	got, err := resolveBin("", name, "")
+	if err != nil || got != filepath.Join(dir, name) {
+		t.Fatalf("got %q, %v", got, err)
+	}
+	// A name with a path in it is never looked up next to the binary.
+	if _, err := resolveBin("", "sub/"+name, ""); err == nil {
+		t.Fatal("a path was resolved against the binary's folder")
+	}
+}

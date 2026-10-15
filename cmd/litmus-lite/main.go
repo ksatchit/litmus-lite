@@ -385,9 +385,19 @@ func cmdHub(args []string) int {
 func cmdInit(args []string) int {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	editor := fs.String("editor", "cursor", "cursor|claude-code")
+	liveDir := fs.String("live-dir", "", "keep the MCP server's live view project in DIR (set LITMUS_LITE_CONFIG_DIR for it), e.g. to share one project with vegaload's MCP server")
 	_ = outputFlag(fs)
 	if err := fs.Parse(args); err != nil {
 		return 2
+	}
+	var env map[string]string
+	if *liveDir != "" {
+		abs, err := absDir(*liveDir)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		env = map[string]string{"LITMUS_LITE_CONFIG_DIR": abs}
 	}
 	bin, err := os.Executable()
 	if err != nil {
@@ -396,14 +406,27 @@ func cmdInit(args []string) int {
 	}
 	cwd, _ := os.Getwd()
 	if strings.Contains(*editor, "cursor") {
-		if err := hosts.WriteCursor(cwd, bin); err != nil {
+		if err := hosts.WriteCursor(cwd, bin, env); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
 	}
-	_ = hosts.WriteProjectMCP(cwd, bin)
+	_ = hosts.WriteProjectMCP(cwd, bin, env)
 	fmt.Println("initialized litmus-lite MCP in", cwd)
 	return 0
+}
+
+// absDir makes a directory argument absolute, expanding a leading ~ the shell
+// did not.
+func absDir(d string) (string, error) {
+	if d == "~" || strings.HasPrefix(d, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		d = filepath.Join(home, strings.TrimPrefix(d, "~"))
+	}
+	return filepath.Abs(d)
 }
 
 func cmdDoctor(args []string) int {

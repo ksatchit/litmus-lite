@@ -141,6 +141,8 @@ What happens on a run:
 3. It pushes the run to `<service>/v1/projects/<project id>/ingest` with the token as a bearer token. The service **creates the project when it first sees the id**, so nobody has to visit the service first or copy anything back.
 4. It prints `live view: <service>/p/<project id>` on stderr and **opens that page in the default browser**, on every run. The page shows the latest run of the project and moves to the next run by itself.
 
+**One project for chaos and load.** litmus-lite and vegaload keep separate identities by default, so a stand-alone load run and a stand-alone chaos run land in two projects. To put both in one, point both at one folder (their `live.json` files are the same format): `litmus-lite init -editor cursor -live-dir DIR` and `vegaload init -editor cursor -live-dir DIR` write `LITMUS_LITE_CONFIG_DIR` / `VEGALOAD_CONFIG_DIR` into each MCP server entry. Runs started from the editor then share a project; runs from a terminal still use the default folder unless that variable is exported there too. Re-running `init` without `-live-dir` keeps what is already in the entry.
+
 Two values, two jobs: the project id is in the page URL, so whoever has the URL can read the project's runs. The push token never appears in a URL; the service keeps its hash from the first push and requires it for every later push, so knowing the URL is not enough to add runs to someone else's project.
 
 ### When it is used

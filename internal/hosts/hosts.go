@@ -33,10 +33,12 @@ Use the CLI (or the matching MCP tools, which wrap the CLI):
 - ` + "`litmus-lite run FILE -output json -out report.json`" + `
 - ` + "`litmus-lite diagnose report.json`" + `
 
-A run is shown live in the user's browser by default (the live view): the page opens by itself, and its URL is printed as ` + "`live view: URL`" + ` (over MCP it is the second text item of ` + "`run_test`" + `). Tell the user that URL after starting a run. Pass ` + "`-no-live`" + ` (MCP: ` + "`no-live`" + `) only if they do not want it, and ` + "`-no-open`" + ` to keep it from opening a browser. Never keep a scenario only in chat. Always write a file. Point probes at the proxy listen address during HTTP faults. Do not require Prometheus or a load generator for a chaos-only run. A ` + "`load:`" + ` block runs during inject. ` + "`tool`" + ` defaults to ` + "`vegaload`" + `; ` + "`k6`" + ` and ` + "`command`" + ` are the other tools. ` + "`command`" + ` must print JSON ` + "`time_series`" + ` of ` + "`offset_s`" + `, ` + "`rps`" + `, and ` + "`error_rate`" + ` on stdout. ` + "`process.pause`" + ` and ` + "`process.kill`" + ` signal only PIDs passed with ` + "`-allow-pid`" + `. ` + "`disk.fill`" + ` requires ` + "`-yes`" + ` and will not overwrite an existing file. A ` + "`failpoint`" + ` fault arms a named Go hook for the inject window. The process must set ` + "`LITMUS_LITE_FAILPOINT`" + ` and ` + "`LITMUS_LITE_FAILPOINT_TOKEN`" + `, and the scenario sends that token to ` + "`params.url`" + `.
+A run is shown live in the user's browser by default (the live view): the page opens by itself, and its URL is printed as ` + "`live view: URL`" + ` (over MCP it is the second text item of ` + "`run_test`" + `). Tell the user that URL after starting a run. Pass ` + "`-no-live`" + ` (MCP: ` + "`no-live`" + `) only if they do not want it, and ` + "`-no-open`" + ` to keep it from opening a browser. Never keep a scenario only in chat. Always write a file. Point probes at the proxy listen address during HTTP faults. Do not require Prometheus or a load generator for a chaos-only run. A ` + "`load:`" + ` block runs during inject. ` + "`tool`" + ` defaults to ` + "`vegaload`" + `; ` + "`k6`" + ` and ` + "`command`" + ` are the other tools. For ` + "`vegaload`" + `, ` + "`scenario`" + ` is a path relative to the chaos file and ` + "`args`" + ` are its flags, for example ` + "`args: [\"-executor\", \"constant-arrival-rate\", \"-rate\", \"10\", \"-max-vus\", \"100\", \"-duration\", \"17s\"]`" + ` (no ` + "`-allow-target`" + ` for localhost). During an HTTP fault the load scenario must target the proxy listen address, not the service itself. The load shows up in the live view next to the probes. ` + "`command`" + ` must print JSON ` + "`time_series`" + ` of ` + "`offset_s`" + `, ` + "`rps`" + `, and ` + "`error_rate`" + ` on stdout. ` + "`process.pause`" + ` and ` + "`process.kill`" + ` signal only PIDs passed with ` + "`-allow-pid`" + `. ` + "`disk.fill`" + ` requires ` + "`-yes`" + ` and will not overwrite an existing file. A ` + "`failpoint`" + ` fault arms a named Go hook for the inject window. The process must set ` + "`LITMUS_LITE_FAILPOINT`" + ` and ` + "`LITMUS_LITE_FAILPOINT_TOKEN`" + `, and the scenario sends that token to ` + "`params.url`" + `.
 `
 
-func WriteCursor(projectRoot, binary string) error {
+// WriteCursor writes the Cursor rule and MCP entry. env, when not empty, is
+// set on the MCP server entry (see mergeMCP).
+func WriteCursor(projectRoot, binary string, env map[string]string) error {
 	rules := filepath.Join(projectRoot, ".cursor", "rules")
 	if err := os.MkdirAll(rules, 0o755); err != nil {
 		return err
@@ -44,10 +46,14 @@ func WriteCursor(projectRoot, binary string) error {
 	if err := os.WriteFile(filepath.Join(rules, "litmus-lite.mdc"), []byte(RuleBody), 0o644); err != nil {
 		return err
 	}
-	return mergeMCP(filepath.Join(projectRoot, ".cursor", "mcp.json"), binary)
+	return mergeMCP(filepath.Join(projectRoot, ".cursor", "mcp.json"), binary, env)
 }
 
-func mergeMCP(path, binary string) error {
+// mergeMCP adds or updates the litmus-lite server in an MCP config file and
+// leaves every other server alone. env entries are set on the server's env
+// object; an env object already there is kept, so a re-run of init without
+// them does not undo an earlier -live-dir.
+func mergeMCP(path, binary string, env map[string]string) error {
 	_ = os.MkdirAll(filepath.Dir(path), 0o755)
 	var root map[string]any
 	if b, err := os.ReadFile(path); err == nil {
@@ -60,10 +66,26 @@ func mergeMCP(path, binary string) error {
 	if servers == nil {
 		servers = map[string]any{}
 	}
-	servers["litmus-lite"] = map[string]any{
+	entry := map[string]any{
 		"command": binary,
 		"args":    []string{"mcp", "serve"},
 	}
+	var merged map[string]any
+	if old, ok := servers["litmus-lite"].(map[string]any); ok {
+		merged, _ = old["env"].(map[string]any)
+	}
+	if len(env) > 0 {
+		if merged == nil {
+			merged = map[string]any{}
+		}
+		for k, v := range env {
+			merged[k] = v
+		}
+	}
+	if len(merged) > 0 {
+		entry["env"] = merged
+	}
+	servers["litmus-lite"] = entry
 	root["mcpServers"] = servers
 	b, err := json.MarshalIndent(root, "", "  ")
 	if err != nil {
@@ -72,6 +94,6 @@ func mergeMCP(path, binary string) error {
 	return os.WriteFile(path, append(b, '\n'), 0o644)
 }
 
-func WriteProjectMCP(projectRoot, binary string) error {
-	return mergeMCP(filepath.Join(projectRoot, ".mcp.json"), binary)
+func WriteProjectMCP(projectRoot, binary string, env map[string]string) error {
+	return mergeMCP(filepath.Join(projectRoot, ".mcp.json"), binary, env)
 }
