@@ -244,25 +244,31 @@ func BucketSeries(start time.Time, samples []probe.Sample, faults []FaultEvent, 
 	}
 	var pts []Point
 	for t := start; !t.After(end); t = t.Add(time.Second) {
-		windowEnd := t.Add(time.Second)
-		ph := Summarize("bucket", t, windowEnd, samples)
-		p := Point{
-			T:            t,
-			OffsetS:      t.Sub(start).Seconds(),
-			P95Ms:        float64(ph.P95.Milliseconds()),
-			ErrorRate:    ph.ErrorRate,
-			Availability: ph.Availability,
-			RPS:          ph.RPS,
-			Phase:        phaseName(t, faults, start),
-		}
-		for _, f := range faults {
-			if inRange(t, f.Start, f.End) {
-				p.Intensity = f.Intensity
-			}
-		}
-		pts = append(pts, p)
+		pts = append(pts, BucketPoint(start, t, samples, faults))
 	}
 	return pts
+}
+
+// BucketPoint computes the one-second point that starts at t. BucketSeries
+// calls it for every bucket, and the live stream calls it as each bucket
+// closes, so a live point and the final series come from the same code.
+func BucketPoint(start, t time.Time, samples []probe.Sample, faults []FaultEvent) Point {
+	ph := Summarize("bucket", t, t.Add(time.Second), samples)
+	p := Point{
+		T:            t,
+		OffsetS:      t.Sub(start).Seconds(),
+		P95Ms:        float64(ph.P95.Milliseconds()),
+		ErrorRate:    ph.ErrorRate,
+		Availability: ph.Availability,
+		RPS:          ph.RPS,
+		Phase:        phaseName(t, faults, start),
+	}
+	for _, f := range faults {
+		if inRange(t, f.Start, f.End) {
+			p.Intensity = f.Intensity
+		}
+	}
+	return p
 }
 
 func phaseName(t time.Time, faults []FaultEvent, start time.Time) string {

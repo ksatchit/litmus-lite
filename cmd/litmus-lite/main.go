@@ -6,8 +6,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/ksatchit/litmus-lite/internal/audit"
 	"github.com/ksatchit/litmus-lite/internal/compare"
@@ -69,6 +71,12 @@ func run(args []string) int {
 		return cmdCI(args[2:])
 	case "export":
 		return cmdExport(args[2:])
+	case "stream":
+		return cmdStream(args[2:])
+	case "serve":
+		return cmdServe(args[2:])
+	case "live":
+		return cmdLive(args[2:])
 	default:
 		fmt.Fprintf(os.Stderr, "unknown command %s\n", args[1])
 		usage()
@@ -82,16 +90,20 @@ func usage() {
 Commands:
   new -beside DIR        write a co-located *.chaos.yaml
   validate FILE          schema + safety
-  run FILE               execute a scenario (-allow-target, -allow-pid, -yes)
+  run FILE               execute a scenario (-allow-target, -allow-pid, -yes, -stream-file|-push|-pull, -run-id, -label)
+                         shows the run in your browser by default (-no-live, -no-open, -live-url; see "live")
   diagnose FILE.json     explain a report
   hub list|search|show|import
   init                   register MCP + Cursor rules
-  doctor                 check CLI / hosts / target (-file FILE)
+  doctor                 check CLI / hosts / target (-file FILE, -stream URL|ADDR)
   compare BASE CAND      phase regression
   mcp serve | mcp eval
   move-to                emit IR or Litmus 4.0 experiment YAML (-adapter ir|litmus)
   ci github              write a GitHub Actions workflow
   export job FILE        Kubernetes Job YAML (no CRD)
+  stream                 from-report | replay | validate | receive (run event streams)
+  serve                  read-only data source over a directory of run files (-dir, -listen)
+  live                   your live-view project: print or open its URL (-open), or "live reset"
 
 `, version)
 }
@@ -188,6 +200,8 @@ func cmdRun(args []string) int {
 	allow := fs.String("allow-target", "", "comma-separated extra hosts")
 	allowPID := fs.String("allow-pid", "", "comma-separated PIDs process faults may signal")
 	yes := fs.Bool("yes", false, "allow long/destructive runs")
+	var sflags runStream
+	sflags.register(fs)
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -215,11 +229,39 @@ func cmdRun(args []string) int {
 		return 2
 	}
 	ctx := safety.WithAllowPIDs(context.Background(), opt.AllowPIDs)
-	res, err := engine.Run(ctx, sc, engine.Options{ScenarioDir: filepath.Dir(file)})
+	eopt := engine.Options{ScenarioDir: filepath.Dir(file)}
+	st, err := sflags.setup()
 	if err != nil {
 		printErr(*outFmt, err)
-		audit.Append(audit.Line{Command: "run", File: file})
+		return 2
+	}
+	auditLine := audit.Line{Command: "run", File: file}
+	if st != nil {
+		auditLine.Stream = st.audit
+		// Only when streaming: stop on Ctrl-C or SIGTERM, roll faults back and
+		// end the stream with run.failed. Without a stream flag, signals are
+		// handled as before.
+		var stop context.CancelFunc
+		ctx, stop = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+		defer stop()
+		eopt.Emitter = st.rec
+		eopt.RunID = st.rec.RunID()
+		defer func() { st.close(ctx) }()
+	}
+	res, err := engine.Run(ctx, sc, eopt)
+	if st != nil && ctx.Err() != nil {
+		fmt.Fprintln(os.Stderr, "interrupted: faults rolled back, no report written")
+		audit.Append(auditLine)
+		return 130
+	}
+	if err != nil {
+		printErr(*outFmt, err)
+		audit.Append(auditLine)
 		return 1
+	}
+	if st != nil {
+		res.Warnings = append(res.Warnings, st.warnings...)
+		res.Warnings = append(res.Warnings, st.rec.Warnings()...)
 	}
 	_ = report.WriteJSON(*outPath, res)
 	_ = report.WriteHTML(htmlPath, res)
@@ -227,7 +269,8 @@ func cmdRun(args []string) int {
 		_ = report.WriteJUnit(*junitPath, res)
 	}
 	passed := res.Passed
-	audit.Append(audit.Line{Command: "run", File: file, Passed: &passed})
+	auditLine.Passed = &passed
+	audit.Append(auditLine)
 	if *outFmt == "json" {
 		b, _ := json.MarshalIndent(res, "", "  ")
 		fmt.Println(string(b))
@@ -342,9 +385,19 @@ func cmdHub(args []string) int {
 func cmdInit(args []string) int {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	editor := fs.String("editor", "cursor", "cursor|claude-code")
+	liveDir := fs.String("live-dir", "", "keep the MCP server's live view project in DIR (set LITMUS_LITE_CONFIG_DIR for it), e.g. to share one project with vegaload's MCP server")
 	_ = outputFlag(fs)
 	if err := fs.Parse(args); err != nil {
 		return 2
+	}
+	var env map[string]string
+	if *liveDir != "" {
+		abs, err := absDir(*liveDir)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		env = map[string]string{"LITMUS_LITE_CONFIG_DIR": abs}
 	}
 	bin, err := os.Executable()
 	if err != nil {
@@ -353,20 +406,35 @@ func cmdInit(args []string) int {
 	}
 	cwd, _ := os.Getwd()
 	if strings.Contains(*editor, "cursor") {
-		if err := hosts.WriteCursor(cwd, bin); err != nil {
+		if err := hosts.WriteCursor(cwd, bin, env); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
 	}
-	_ = hosts.WriteProjectMCP(cwd, bin)
+	_ = hosts.WriteProjectMCP(cwd, bin, env)
 	fmt.Println("initialized litmus-lite MCP in", cwd)
 	return 0
+}
+
+// absDir makes a directory argument absolute, expanding a leading ~ the shell
+// did not.
+func absDir(d string) (string, error) {
+	if d == "~" || strings.HasPrefix(d, "~/") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", err
+		}
+		d = filepath.Join(home, strings.TrimPrefix(d, "~"))
+	}
+	return filepath.Abs(d)
 }
 
 func cmdDoctor(args []string) int {
 	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	target := fs.String("target", "", "optional HTTP URL")
 	file := fs.String("file", "", "optional scenario; check its load tool")
+	streamDest := fs.String("stream", "", "check a streaming destination: an ingest URL (accepts a test batch) or a listen address (can be bound)")
+	streamInsecure := fs.Bool("stream-insecure", false, "with -stream: allow http:// to a non-loopback host")
 	fix := fs.Bool("fix", false, "write missing Cursor MCP/rules files")
 	out := outputFlag(fs)
 	if err := fs.Parse(args); err != nil {
@@ -376,6 +444,9 @@ func cmdDoctor(args []string) int {
 		return cmdInit([]string{"-editor", "cursor"})
 	}
 	checks := doctor.Run(*target, *file)
+	if *streamDest != "" {
+		checks = append(checks, doctor.Stream(*streamDest, os.Getenv("LITMUS_LITE_STREAM_TOKEN"), *streamInsecure))
+	}
 	if *out == "json" {
 		fmt.Println(string(doctor.JSON(checks)))
 	} else {

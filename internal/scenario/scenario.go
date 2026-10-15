@@ -11,6 +11,12 @@ import (
 
 const APIVersion = "litmus-lite.io/v1"
 
+// Values of load.start.
+const (
+	LoadStartInject   = "inject"
+	LoadStartBaseline = "baseline"
+)
+
 type Scenario struct {
 	APIVersion    string         `yaml:"apiVersion" json:"apiVersion"`
 	Kind          string         `yaml:"kind" json:"kind"`
@@ -65,7 +71,11 @@ type Hypothesis struct {
 type LoadSpec struct {
 	// Tool is vegaload (default), k6, or command. command runs load.command
 	// and expects normalized time_series JSON on stdout.
-	Tool     string   `yaml:"tool" json:"tool,omitempty"`
+	Tool string `yaml:"tool" json:"tool,omitempty"`
+	// Start is inject (default: the generator starts with the fault) or
+	// baseline (it starts with the probes). Its series is aligned to its own
+	// start either way.
+	Start    string   `yaml:"start" json:"start,omitempty"`
 	Scenario string   `yaml:"scenario" json:"scenario,omitempty"`
 	Command  string   `yaml:"command" json:"command,omitempty"`
 	Args     []string `yaml:"args" json:"args,omitempty"`
@@ -119,6 +129,10 @@ func (s *Scenario) Normalize() error {
 		s.Load.Tool = strings.ToLower(strings.TrimSpace(s.Load.Tool))
 		if s.Load.Tool == "" {
 			s.Load.Tool = "vegaload"
+		}
+		s.Load.Start = strings.ToLower(strings.TrimSpace(s.Load.Start))
+		if s.Load.Start == "" {
+			s.Load.Start = LoadStartInject
 		}
 	}
 	for i := range s.Probes {
@@ -193,6 +207,9 @@ func (s *Scenario) Validate() error {
 		}
 	}
 	if s.Load != nil {
+		if s.Load.Start != LoadStartInject && s.Load.Start != LoadStartBaseline {
+			return fmt.Errorf("load.start %q must be %s or %s", s.Load.Start, LoadStartInject, LoadStartBaseline)
+		}
 		switch s.Load.Tool {
 		case "vegaload", "k6":
 			if strings.TrimSpace(s.Load.Scenario) == "" {

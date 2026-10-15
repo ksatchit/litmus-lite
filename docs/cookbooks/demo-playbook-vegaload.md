@@ -16,8 +16,8 @@ Do not lead the meeting with this beat. If VegaLoad is missing, chaos-only still
 | --- | --- |
 | **Intent** | Same slow/flaky HTTP hop as ignite, **plus** synthetic users so the overlay shows load RPS under the fault band. Proves composition: no third `*.rt.yaml`, no separate “resilience” MCP tool. |
 | **How** | Identical proxy (`:18080` → `:8080`, 800ms, 5% 500s, 12s). `load.scenario` points at `launches.vl.js`. `tool` is omitted, so the run execs `vegaload` from PATH (not a library). VUs GET `/healthz` and `/api/launches` on **`:18080`**. Load RPS and error rate are merged onto the chaos timeseries at inject offset. Probe p95 stays the latency signal. |
-| **Expect** | Chaos hypotheses still pass (errors under 15%, recover ≤ 5s). HTML shows probe p95 tracking delay **and** a throughput line during inject (VegaLoad RPS). `report.json` has a `load` blob. Prom still optional. |
-| **Fail looks like** | Warning `vegaload not on PATH; running chaos only` — you are back on Beat A; do not pretend load landed. Or healthy RPS on `:8080` while p95 is flat — VUs missed the proxy. Or vegaload refused a non-allowlisted host — keep `-allow-target` and loopback. |
+| **Expect** | Chaos hypotheses still pass (errors under 25%, recover ≤ 5s). HTML shows probe p95 tracking delay **and** a throughput line during inject (VegaLoad RPS). `report.json` has a `load` blob. Prom still optional. |
+| **Fail looks like** | Warning `vegaload not on PATH; running chaos only` — you are back on Beat A; do not pretend load landed. Or healthy RPS on `:8080` while p95 is flat — VUs missed the proxy. Or vegaload refused a non-allowlisted host — keep the target on loopback (or give `-allow-target HOST`). |
 
 ### `examples/launchpad/launches.vl.js`
 
@@ -45,7 +45,7 @@ go build -o litmus-lite ./cmd/litmus-lite
 ./litmus-lite validate examples/launchpad/ignite-load.chaos.yaml
 ```
 
-`doctor` must show `vegaload` **ok**, not warn. Rehearse one full `run` so you know vegaload flag names on your installed version (`-vus`, `-duration`, `-allow-target`). If your VegaLoad build uses different flags, edit `load.args` in rehearsal, not on stage.
+`doctor` must show `vegaload` **ok**, not warn. Rehearse one full `run` so you know vegaload flag names on your installed version (`-vus`, `-duration`; `-allow-target` takes a host, and loopback needs none). If your VegaLoad build uses different flags, edit `load.args` in rehearsal, not on stage.
 
 ---
 

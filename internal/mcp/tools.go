@@ -1,6 +1,8 @@
 package mcp
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -61,10 +63,18 @@ func allTools() []tool {
 		},
 		{
 			Name: "run_test", CLI: "run",
-			Desc: "litmus-lite run: execute a scenario (steady state, inject, recover) and write a JSON report and an overlay HTML report. Returns the report as JSON.",
+			Desc: "litmus-lite run: execute a scenario (steady state, inject, recover) and write a JSON report and an overlay HTML report. The first text item of the result is the report as JSON. By default the run is also shown live in the user's browser (the live view): the page opens by itself and its URL is in a second text item, \"live view: URL\". Tell the user that URL. Pass no-live only if the user does not want the live view, or no-open to stream without opening a browser.",
 			Props: safetyProps(map[string]any{
-				"file": strArg("Path to the *.chaos.yaml file."),
-				"out":  strArg("Where to write the JSON report, for example report.json. Pass this path to diagnose_failure or get_results."),
+				"file":        strArg("Path to the *.chaos.yaml file."),
+				"out":         strArg("Where to write the JSON report, for example report.json. Pass this path to diagnose_failure or get_results."),
+				"stream_file": strArg("Optional. Forward -stream-file: write the run as NDJSON events to this path, or \"auto\" for .litmus-lite/runs/<run id>.ndjson."),
+				"stream_push": strArg("Optional. Forward -stream-push: ingest URL(s) to POST events to, comma-separated. https unless the host is loopback. The token comes from LITMUS_LITE_STREAM_TOKEN, never from here."),
+				"stream_pull": strArg("Optional. Forward -stream-pull: address to serve the run as SSE on while it runs, for example 127.0.0.1:7070. The tool call returns after the run and a short linger."),
+				"run_id":      strArg("Optional. Forward -run-id: the id used on stream events (A-Z a-z 0-9 . _ -, up to 64). Give a generator the same id to join their streams."),
+				"labels":      strArg("Optional. Forward -label: comma-separated key=value labels for every stream event, for example \"service=checkout,env=ci\"."),
+				"live":        boolArg("Optional. Forward -live: show the run in the live view even when CI is set or a stream_* destination is given. The live view is already the default when none is given."),
+				"no-live":     boolArg("Optional. Forward -no-live: do not stream to the live view or open a browser."),
+				"no-open":     boolArg("Optional. Forward -no-open: stream to the live view but do not open the browser."),
 			}),
 			Required: []string{"file"},
 		},
@@ -175,6 +185,37 @@ func cliArgs(name string, args map[string]any) ([]string, error) {
 		}
 		return argv
 	}
+	// Streaming arguments are passed to the same flags `run` has. There is no
+	// MCP-only streaming path, and nothing here can relax the CLI's rules.
+	// Without live, no-live or no-open, `run` does what it does from a shell:
+	// the live view is on unless CI is set or a destination is given.
+	streamFlags := func(argv []string) []string {
+		for _, f := range []string{"live", "no-live", "no-open"} {
+			if flagOn(args, f) {
+				argv = append(argv, "-"+f)
+			}
+		}
+		if v := str("stream_file", ""); v != "" {
+			argv = append(argv, "-stream-file", v)
+		}
+		for _, u := range strings.Split(str("stream_push", ""), ",") {
+			if u = strings.TrimSpace(u); u != "" {
+				argv = append(argv, "-stream-push", u)
+			}
+		}
+		if v := str("stream_pull", ""); v != "" {
+			argv = append(argv, "-stream-pull", v)
+		}
+		if v := str("run_id", ""); v != "" {
+			argv = append(argv, "-run-id", v)
+		}
+		for _, l := range strings.Split(str("labels", ""), ",") {
+			if l = strings.TrimSpace(l); l != "" {
+				argv = append(argv, "-label", l)
+			}
+		}
+		return argv
+	}
 	switch name {
 	case "create_scenario":
 		return []string{"new", "-beside", str("beside", "."), "-name", str("name", "scenario"), "-output", "json"}, nil
@@ -187,6 +228,7 @@ func cliArgs(name string, args map[string]any) ([]string, error) {
 			argv = append(argv, "-out", o)
 		}
 		argv = safetyFlags(argv)
+		argv = streamFlags(argv)
 		return append(argv, str("file", "")), nil
 	case "diagnose_failure":
 		return []string{"diagnose", "-output", "json", str("file", "")}, nil
@@ -229,13 +271,28 @@ func flagOn(args map[string]any, key string) bool {
 	}
 }
 
+// toolResult is what a tool call produced. Text is the CLI's stdout, which is
+// JSON for every tool that has an -output flag. Notes is what it wrote to
+// stderr: warnings, and the "live view: URL" line of `run`.
+type toolResult struct {
+	Text  string
+	Notes string
+}
+
 func callTool(name string, args map[string]any) (string, error) {
+	r, err := runTool(name, args)
+	return r.Text, err
+}
+
+// runTool runs one tool. stdout and stderr are kept apart so that a note on
+// stderr can never make the JSON on stdout unparseable.
+func runTool(name string, args map[string]any) (toolResult, error) {
 	t, ok := toolByName(name)
 	if !ok {
-		return "", fmt.Errorf("unknown tool %s", name)
+		return toolResult{}, fmt.Errorf("unknown tool %s", name)
 	}
 	if t.CLI == "" && !t.ReadFile {
-		return "", fmt.Errorf("tool %q has no CLI equivalent", name)
+		return toolResult{}, fmt.Errorf("tool %q has no CLI equivalent", name)
 	}
 	str := func(k, def string) string {
 		if args == nil {
@@ -248,20 +305,35 @@ func callTool(name string, args map[string]any) (string, error) {
 	}
 	if t.ReadFile {
 		b, err := os.ReadFile(str("file", "report.json"))
-		return string(b), err
+		return toolResult{Text: string(b)}, err
 	}
 	argv, err := cliArgs(name, args)
 	if err != nil {
-		return "", err
+		return toolResult{}, err
 	}
 	bin, err := resolveCLI()
 	if err != nil {
-		return "", err
+		return toolResult{}, err
 	}
+	var stdout, stderr bytes.Buffer
 	cmd := exec.Command(bin, argv...)
-	b, err := cmd.CombinedOutput()
-	if err != nil {
-		return strings.TrimSpace(string(b)), fmt.Errorf("%s: %w", strings.TrimSpace(string(b)), err)
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		// Exit code 3 is a finished run or comparison whose verdict is "not
+		// passed". That is a result, not a failure of the tool: the JSON says
+		// passed:false and the notes (including the live view link) still matter,
+		// so the agent gets both exactly as for a pass. Any other exit code is an
+		// error, as before.
+		var ee *exec.ExitError
+		if errors.As(err, &ee) && ee.ExitCode() == exitNotPassed {
+			return toolResult{Text: stdout.String(), Notes: strings.TrimSpace(stderr.String())}, nil
+		}
+		both := strings.TrimSpace(stdout.String() + stderr.String())
+		return toolResult{Text: both}, fmt.Errorf("%s: %w", both, err)
 	}
-	return string(b), nil
+	return toolResult{Text: stdout.String(), Notes: strings.TrimSpace(stderr.String())}, nil
 }
+
+// exitNotPassed is the CLI exit code of a run or comparison that finished and
+// did not pass (a failed hypothesis, a regression).
+const exitNotPassed = 3

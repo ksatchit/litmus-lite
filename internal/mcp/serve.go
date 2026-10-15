@@ -58,16 +58,21 @@ func handle(r req) map[string]any {
 	case "tools/call":
 		var p toolCall
 		_ = json.Unmarshal(r.Params, &p)
-		text, err := callTool(p.Name, p.Args)
+		res, err := runTool(p.Name, p.Args)
 		if err != nil {
 			return ok(r.ID, map[string]any{
 				"content": []map[string]string{{"type": "text", "text": err.Error()}},
 				"isError": true,
 			})
 		}
-		return ok(r.ID, map[string]any{
-			"content": []map[string]string{{"type": "text", "text": text}},
-		})
+		// The first item is the tool's stdout, unchanged: JSON for the tools
+		// that return JSON. What the CLI said on stderr (warnings, the live
+		// view URL) is a second item, so it never breaks the first.
+		content := []map[string]string{{"type": "text", "text": res.Text}}
+		if res.Notes != "" {
+			content = append(content, map[string]string{"type": "text", "text": res.Notes})
+		}
+		return ok(r.ID, map[string]any{"content": content})
 	default:
 		return errResp(r.ID, fmt.Sprintf("unknown method %s", r.Method))
 	}

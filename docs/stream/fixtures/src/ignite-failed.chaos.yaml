@@ -1,0 +1,47 @@
+# examples/launchpad/ignite.chaos.yaml with a hypothesis that cannot hold under
+# an 800ms delay, so the recorded run completes with a failed hypothesis. Also
+# no Prometheus block, so this recording has no warning event.
+apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata:
+  name: launchpad-http-latency-failed
+target:
+  kind: http
+  baseUrl: http://127.0.0.1:8080
+steadyState:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8080/healthz
+    expect: { status: 200 }
+    mode: SOT
+faults:
+  - name: slow-api
+    kind: http.latency
+    duration: 8s
+    params:
+      listen: "127.0.0.1:18080"
+      upstream: "127.0.0.1:8080"
+      delay: 800ms
+      jitter: 100ms
+      statusOverride: { percent: 5, code: 500 }
+probes:
+  - name: list-launches
+    type: http
+    url: http://127.0.0.1:18080/api/launches
+    interval: 200ms
+    mode: continuous
+    expect: { status: 200 }
+hypotheses:
+  - name: errors-bounded
+    metric: error_rate
+    operator: <
+    value: "15%"
+  - name: stays-fast
+    metric: p95
+    operator: <
+    value: 300ms
+  - name: recovers
+    metric: recovery
+    operator: <=
+    value: 5s
+rollback: always

@@ -15,7 +15,7 @@ import (
 	"github.com/ksatchit/litmus-lite/internal/scenario"
 )
 
-func runK6(ctx context.Context, binOverride, baseDir string, load *scenario.LoadSpec) (Output, error) {
+func runK6(ctx context.Context, binOverride, baseDir string, load *scenario.LoadSpec, opts RunOptions) (Output, error) {
 	path, err := resolveBin(baseDir, "k6", binOverride)
 	if err != nil {
 		return Output{Tool: "k6", Warn: "k6 not on PATH; running chaos only"}, nil
@@ -30,6 +30,7 @@ func runK6(ctx context.Context, binOverride, baseDir string, load *scenario.Load
 	args = append(args, load.Args...)
 	args = append(args, scen)
 	cmd := exec.CommandContext(ctx, path, args...)
+	cmd.Env = childEnv("k6", opts)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	cmd.Stdout = &stderr

@@ -26,7 +26,7 @@ Read this once. In the room, name the intent in one sentence before the agent ru
 | --- | --- |
 | **Intent** | Prove LaunchPad’s list/ignite path stays usable when the HTTP hop in front of missioncontrol is slow and occasionally wrong. This is the inner-loop “slow dependency” test. |
 | **How** | Userspace proxy on `:18080` → `:8080`. Inject 800ms delay, 100ms jitter, 5% HTTP 500, for 12s. Continuous GET `/api/launches` through the **proxy**. |
-| **Expect** | SOT `/healthz` on `:8080` is fine. During inject, probe p95 rises toward ~800ms+jitter; error rate stays under 15%. After the proxy disarms, error rate returns to ~0 within 5s. Overlay: shaded inject band, p95 tracks delay. Prom down is a warning, not a fail. |
+| **Expect** | SOT `/healthz` on `:8080` is fine. During inject, probe p95 rises toward ~800ms+jitter; error rate stays under 25%. After the proxy disarms, error rate returns to ~0 within 5s. Overlay: shaded inject band, p95 tracks delay. Prom down is a warning, not a fail. |
 | **Fail looks like** | Flat p95 (probes still on `:8080`), or the run hanging (nothing listening on `:8080`). |
 
 ### `examples/launchpad/pause-engine.chaos.yaml` — freeze the engine process

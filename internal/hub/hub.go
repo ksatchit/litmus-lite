@@ -70,7 +70,7 @@ hypotheses:
   - name: errors-bounded
     metric: error_rate
     operator: <
-    value: "15%"
+    value: "25%"
   - name: recovers
     metric: recovery
     operator: <=

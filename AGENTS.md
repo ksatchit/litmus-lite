@@ -36,6 +36,7 @@ If a proposed change breaks any of these, stop and flag it.
 - **Hosts / doctor** (`internal/hosts`, `internal/doctor`): `init` and `doctor` share host paths.
 - **Compose** (`internal/compose`): load-generator CLI exec + normalized series merge (`vegaload`, `k6`, `command`).
 - **move-to** (`internal/moveto`): IR and adapters. Core engine has zero awareness of Litmus SaaS or Harness.
+- **Stream** (`internal/stream`): the run event format (`docs/stream/schema/v1.json`), NDJSON recordings, the HTTP servers behind `stream replay` and `-stream-pull` (`live.go`), the push sink and the reference receiver. Event format v1 is frozen: add optional fields or new types only. It must not import the engine. The engine talks to it only through the `engine.Emitter` interface (nil means off, and the engine never waits on it); `stream.Recorder` implements it and puts a bounded queue in front of every sink (`internal/stream/sink.go`). Live `point` events come from `report.BucketPoint`, the same function that builds the final series, so keep them in step. Streaming is additive: with no `-stream-*` flag the only addition is the default live view (`internal/live`: a `live.json` identity, a push to the live-view service, the page opened in the browser; off with `-no-live`, `LITMUS_LITE_LIVE=off`, `CI` or any explicit `-stream-*` destination, and never used by commands other than `run`; MCP `run_test` follows the CLI default and has `live`, `no-live` and `no-open` arguments, and returns the run JSON as its first text item and the stderr notes, with `live view: URL`, as a second one; exit code 3, a finished run that did not pass, is returned the same way, not as a tool error), a streaming problem never changes a run's result, reports or exit code, and credentials in fault params are never emitted (`stream.Redact`). Destinations come from flags or environment, never from a scenario file. Design: `docs/streaming.md`.
 - **Failpoint** (`failpoint`): Go SDK (`Delay`, `Fail`, `Panic`). Off unless `LITMUS_LITE_FAILPOINT` lists the name. `UseWindow` keeps hooks dark until a scenario arms them. The `failpoint` fault POSTs to the app; it does not import the SDK. Sample app: `examples/cashier`.
 
 ## Conventions
@@ -45,7 +46,7 @@ If a proposed change breaks any of these, stop and flag it.
 - Pass/fail predicates on a chaos run are **hypotheses**, not “thresholds” and not “resilience score.”
 - Community-facing copy never requires a vendor name for `move-to`.
 - Commit messages: one line, present tense, why not a command log.
-- Do not add telemetry.
+- Do not add telemetry. The default live view of `run` is the one deliberate exception to "nothing leaves the machine unprompted": it sends the run (not usage data) to the live-view service named in `docs/streaming.md`, with documented opt-outs. Keep it that way: no other command may send anything by default, the push token and project id must never reach a report, event or the audit log, and tests must never touch a real config directory or a real bridge (`cmd/litmus-lite/main_test.go` turns it off and isolates it).
 
 ## Commands an agent should know
 
@@ -58,6 +59,11 @@ If a proposed change breaks any of these, stop and flag it.
 - `litmus-lite init` / `doctor` / `mcp serve` / `mcp eval` (fixtures exec the CLI)
 - `litmus-lite compare BASE CAND`
 - `litmus-lite move-to -adapter ir|litmus`
+- `litmus-lite run FILE -stream-file PATH|auto -stream-push URL -stream-pull ADDR -run-id ID -label k=v [-stream-samples -stream-scenario -stream-pull-linger D -stream-insecure -stream-cors-origin O]` — stream the run as live events to a file, to an ingest URL (token from `LITMUS_LITE_STREAM_TOKEN`) and as SSE (S1, S2). Without these flags `run` is unchanged. With them, SIGINT/SIGTERM roll faults back and end the stream with `run.failed`. A destination that is refused (http to a remote host, a non-loopback bind without a token) exits 2 before the run; one that fails later is only a warning.
+- `litmus-lite live [-open] | live reset` — print or open this machine's live-view project page, or start a new project. `run` uses the live view by default (`-live`, `-no-live`, `-no-open`, `-live-url`); see "Live view" in `docs/streaming.md`.
+- `litmus-lite stream receive [-dir D -listen A -print -delay D -fail-percent N]` — reference ingest endpoint for `-stream-push`. `litmus-lite doctor -stream URL|ADDR` checks a destination.
+- `litmus-lite serve [-dir D -listen A -cors-origin O -stale D]` — read-only data source over a directory of run files; follows a run in progress by tailing its file (`internal/stream/serve.go`). It must stay read-only and must never import the engine or talk to a running `run`.
+- `litmus-lite stream from-report|validate|replay` — turn a report into events, check a recording, serve recordings over HTTP/SSE, or push them (`replay -stream-push`). Fixtures live in `docs/stream/fixtures/` (`generate.sh` re-records them; a test keeps each `.ndjson` equal to what `from-report` writes).
 - `go test ./...`
 
 ## What not to do

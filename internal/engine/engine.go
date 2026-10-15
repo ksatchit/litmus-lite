@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -17,10 +18,55 @@ import (
 type Options struct {
 	LoadBin     string // optional executable override for load.tool
 	ScenarioDir string // directory of the *.chaos.yaml, for relative load: paths
+	// Emitter, when set, is told what happens during the run (run streaming).
+	// The engine never waits on it and its behaviour does not change the result.
+	Emitter Emitter
+	// RunID, when set, is exported to a load generator as LITMUS_LITE_RUN_ID.
+	RunID string
 }
 
+// runState lets Run see which faults were armed when the run ends early.
+type runState struct {
+	started func() []report.FaultEvent
+}
+
+// Run executes the scenario. When Options.Emitter is set, the emitter sees
+// Started first and then exactly one of Finished or Failed, after faults have
+// been rolled back.
 func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Result, error) {
+	em := opt.Emitter
+	if em == nil {
+		em = nopEmitter{}
+	}
+	var st runState
+	res, err := run(ctx, sc, opt, em, &st)
+	var started []report.FaultEvent
+	if st.started != nil {
+		started = st.started()
+	}
+	switch {
+	case ctx.Err() != nil:
+		// A cancelled run still goes on to a report, but it did not complete.
+		reason := "interrupted"
+		if !errors.Is(ctx.Err(), context.Canceled) {
+			reason = ctx.Err().Error()
+		}
+		var partial *report.Result
+		if err == nil && res != nil && len(res.Phases) > 0 {
+			partial = res
+		}
+		em.Failed(reason, partial, started)
+	case err != nil:
+		em.Failed(err.Error(), nil, started)
+	default:
+		em.Finished(res)
+	}
+	return res, err
+}
+
+func run(ctx context.Context, sc *scenario.Scenario, opt Options, em Emitter, st *runState) (*report.Result, error) {
 	res := &report.Result{Name: sc.Metadata.Name, StartedAt: time.Now(), Passed: true}
+	em.Started(sc, res.StartedAt)
 	baseline, err := time.ParseDuration(sc.Baseline)
 	if err != nil {
 		return res, fmt.Errorf("baseline: %w", err)
@@ -44,11 +90,25 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 		wg.Wait()
 	}
 
+	var live *livePoints
+	if opt.Emitter != nil {
+		live = newLivePoints(em, res.StartedAt, func() []probe.Sample {
+			mu.Lock()
+			defer mu.Unlock()
+			return samples[:len(samples):len(samples)]
+		})
+		live.begin()
+		defer live.end()
+	}
+
 	runProbe := func(p scenario.Probe) {
+		id := live.probeStarted()
 		s := probe.Once(ctx, p)
 		mu.Lock()
 		samples = append(samples, s)
 		mu.Unlock()
+		live.probeDone(id)
+		em.Sample(s)
 	}
 
 	for _, p := range sc.SteadyState {
@@ -64,6 +124,34 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 	var running []faults.Running
 	stopped := make([]bool, 0)
 	var events []report.FaultEvent
+	// announced[i] is set when fault.started was emitted for events[i], and
+	// ended[i] when fault.ended was.
+	announced := map[int]bool{}
+	ended := map[int]bool{}
+	announceStart := func(i int) {
+		live.setFaults(events)
+		announced[i] = true
+		em.FaultStarted(events[i])
+	}
+	announceEnd := func(i int) {
+		live.setFaults(events)
+		if announced[i] && !ended[i] {
+			ended[i] = true
+			em.FaultEnded(events[i])
+		}
+	}
+	st.started = func() []report.FaultEvent {
+		var out []report.FaultEvent
+		for i := range events {
+			if announced[i] {
+				out = append(out, events[i])
+			}
+		}
+		return out
+	}
+
+	var loadWG sync.WaitGroup
+	loadCtx, cancelLoad := context.WithCancel(ctx)
 	defer func() {
 		haltProbes()
 		for i, r := range running {
@@ -87,10 +175,21 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 			if events[i].Rollback == "" {
 				events[i].Rollback = "ok"
 			}
+			if announced[i] && !ended[i] {
+				// The run is ending early: this fault is rolled back now.
+				if events[i].End.IsZero() {
+					events[i].End = time.Now()
+				}
+				announceEnd(i)
+			}
 		}
 		if res.FaultLog == nil {
 			res.FaultLog = events
 		}
+		// A load generator still running (it can start with the baseline) must
+		// not outlive an early exit.
+		cancelLoad()
+		loadWG.Wait()
 	}()
 
 	type pendingFault struct {
@@ -183,13 +282,84 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 		return res, err
 	}
 
+	// The generator starts with the fault (the default) or with the probes
+	// (load.start: baseline). Its series is aligned to the moment it started.
+	var loadSeries []compose.LoadPoint
+	var loadStart time.Time
+	startLoad := func() {
+		if !compose.Active(sc.Load) {
+			return
+		}
+		loadStart = time.Now()
+		startOffset := loadStart.Sub(res.StartedAt).Seconds()
+		tool := sc.Load.Tool
+		if tool == "" {
+			tool = "vegaload"
+		}
+		if opt.Emitter != nil {
+			em.LoadStarted(tool, startOffset)
+		}
+		ropt := compose.RunOptions{RunID: opt.RunID}
+		if opt.Emitter != nil {
+			ropt.Progress = func(p compose.LivePoint) {
+				p.OffsetS += startOffset
+				em.LoadPoint(p)
+			}
+		}
+		loadWG.Add(1)
+		go func() {
+			defer loadWG.Done()
+			out, err := compose.RunWith(loadCtx, opt.LoadBin, opt.ScenarioDir, sc.Load, ropt)
+			if opt.Emitter != nil {
+				shifted := make([]compose.LoadPoint, 0, len(out.Series))
+				for _, lp := range out.Series {
+					lp.OffsetS += startOffset
+					shifted = append(shifted, lp)
+				}
+				msg := ""
+				if err != nil {
+					msg = err.Error()
+				}
+				em.LoadFinished(shifted, msg)
+			}
+			label := out.Tool
+			if label == "" {
+				label = "load"
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			warn := func(msg string) {
+				res.Warnings = append(res.Warnings, msg)
+				em.Warning(msg)
+			}
+			if out.Warn != "" {
+				warn(out.Warn)
+			}
+			if len(out.Raw) > 0 {
+				res.Load = out.Raw
+			}
+			if len(out.Series) > 0 {
+				loadSeries = out.Series
+			}
+			if err != nil {
+				warn(label + ": " + err.Error())
+			}
+		}()
+	}
+	loadAtBaseline := sc.Load != nil && sc.Load.Start == scenario.LoadStartBaseline
+
 	steadyStart := time.Now()
+	em.Phase("steady")
+	if loadAtBaseline {
+		startLoad()
+	}
 	select {
 	case <-ctx.Done():
 		return res, ctx.Err()
 	case <-time.After(baseline):
 	}
 	injectStart := time.Now()
+	em.Phase("inject")
 	for _, p := range pending {
 		r, err := p.inj.Start(ctx, p.f)
 		if err != nil {
@@ -200,6 +370,7 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 		events = append(events, report.FaultEvent{
 			Name: p.f.Name, Kind: p.f.Kind, Start: time.Now(), Tunables: p.f.Params, Intensity: r.Intensity(),
 		})
+		announceStart(len(events) - 1)
 	}
 	for i, r := range running {
 		if a, ok := r.(faults.Armable); ok {
@@ -209,34 +380,15 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 			events[i].Start = time.Now()
 		}
 		events[i].Intensity = r.Intensity()
+		if !announced[i] {
+			announceStart(i)
+		} else {
+			live.setFaults(events)
+		}
 	}
 
-	var loadWG sync.WaitGroup
-	var loadSeries []compose.LoadPoint
-	if compose.Active(sc.Load) {
-		loadWG.Add(1)
-		go func() {
-			defer loadWG.Done()
-			out, err := compose.Run(ctx, opt.LoadBin, opt.ScenarioDir, sc.Load)
-			label := out.Tool
-			if label == "" {
-				label = "load"
-			}
-			mu.Lock()
-			defer mu.Unlock()
-			if out.Warn != "" {
-				res.Warnings = append(res.Warnings, out.Warn)
-			}
-			if len(out.Raw) > 0 {
-				res.Load = out.Raw
-			}
-			if len(out.Series) > 0 {
-				loadSeries = out.Series
-			}
-			if err != nil {
-				res.Warnings = append(res.Warnings, label+": "+err.Error())
-			}
-		}()
+	if !loadAtBaseline {
+		startLoad()
 	}
 
 	maxDur := time.Duration(0)
@@ -251,11 +403,13 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 	}
 
 	injectEnd := time.Now()
+	em.Phase("recover")
 	for i, r := range running {
 		if a, ok := r.(faults.Armable); ok {
 			a.Disarm()
 			events[i].End = injectEnd
 			events[i].Rollback = "ok"
+			announceEnd(i)
 			continue
 		}
 		if err := r.Stop(); err != nil {
@@ -265,6 +419,7 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 		}
 		stopped[i] = true
 		events[i].End = time.Now()
+		announceEnd(i)
 	}
 
 	select {
@@ -272,6 +427,7 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 	case <-time.After(recoverFor):
 	}
 	recoverEnd := time.Now()
+	emittedPoints := live.end()
 	haltProbes()
 	loadWG.Wait()
 
@@ -293,11 +449,22 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 	res.Phases = []report.Phase{phSteady, phInject, phRec}
 	res.Recovery = report.RecoveryTime(res.Probes, injectEnd)
 	res.TimeSeries = report.BucketSeries(res.StartedAt, res.Probes, events, recoverEnd)
+	// The buckets that were not closed when the ticker stopped. They are
+	// emitted before the load series is merged, so every live point is
+	// computed from probes alone.
+	if opt.Emitter != nil {
+		for i := emittedPoints; i < len(res.TimeSeries); i++ {
+			em.Point(res.TimeSeries[i])
+		}
+	}
 	mu.Lock()
 	series := append([]compose.LoadPoint(nil), loadSeries...)
 	mu.Unlock()
 	if len(series) > 0 {
 		shift := injectStart.Sub(res.StartedAt).Seconds()
+		if loadAtBaseline {
+			shift = loadStart.Sub(res.StartedAt).Seconds()
+		}
 		res.TimeSeries = compose.MergePoints(res.TimeSeries, series, shift)
 	}
 	res.ObservedVsInjected = report.ObservedVsInjected(events, phInject)
@@ -314,6 +481,7 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 		pts, err := obs.QueryRange(ctx, sc.Observability.Prometheus.URL, res.StartedAt, recoverEnd)
 		if err != nil {
 			res.Warnings = append(res.Warnings, "prometheus: "+err.Error())
+			em.Warning("prometheus: " + err.Error())
 		} else {
 			res.Prometheus = pts
 		}

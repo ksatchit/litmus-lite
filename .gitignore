@@ -7,5 +7,6 @@ dist/
 
 # Local-only internals — never commit
 docs/PRD.md
+docs/PENDING.md
 docs/context/
 examples/launchpad/UPSTREAM.md

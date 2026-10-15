@@ -10,7 +10,7 @@ import (
 	"github.com/ksatchit/litmus-lite/internal/scenario"
 )
 
-func runCommand(ctx context.Context, binOverride, baseDir string, load *scenario.LoadSpec) (Output, error) {
+func runCommand(ctx context.Context, binOverride, baseDir string, load *scenario.LoadSpec, opts RunOptions) (Output, error) {
 	name := load.Command
 	path, err := resolveBin(baseDir, name, binOverride)
 	if err != nil {
@@ -23,6 +23,7 @@ func runCommand(ctx context.Context, binOverride, baseDir string, load *scenario
 		args = append(args, scen)
 	}
 	cmd := exec.CommandContext(ctx, path, args...)
+	cmd.Env = childEnv("command", opts)
 	stdout, err := cmd.Output()
 	out := Output{Tool: "command", Raw: asRaw(stdout)}
 	if err != nil {

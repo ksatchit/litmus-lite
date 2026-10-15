@@ -1,0 +1,268 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:litmus-lite:stream:v1",
+  "title": "litmus-lite run event, schema litmus-lite.io/stream/v1",
+  "description": "One event of a litmus-lite run. Frozen as v1 at the end of S2: fields are only added, never renamed, removed or retyped. Consumers must ignore unknown fields and skip unknown event types, so this schema allows both.",
+  "x-status": "frozen",
+  "type": "object",
+  "required": ["schema", "runId", "seq", "ts", "offsetS", "type", "data"],
+  "properties": {
+    "schema": { "const": "litmus-lite.io/stream/v1" },
+    "runId": { "type": "string", "minLength": 1 },
+    "seq": { "type": "integer", "minimum": 1, "description": "Starts at 1 and increases by one per event within a run. The same in every sink." },
+    "ts": { "type": "string", "format": "date-time", "description": "Wall-clock time of the event." },
+    "offsetS": { "type": "number", "minimum": 0, "description": "Seconds since the run started." },
+    "labels": { "type": "object", "additionalProperties": { "type": "string" } },
+    "synthetic": { "type": "boolean", "description": "True when the event was built from a finished report instead of observed live." },
+    "type": { "type": "string", "minLength": 1 },
+    "data": { "type": "object" }
+  },
+  "allOf": [
+    { "if": { "properties": { "type": { "const": "run.started" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/RunStarted" } } } },
+    { "if": { "properties": { "type": { "const": "phase.changed" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/PhaseChanged" } } } },
+    { "if": { "properties": { "type": { "const": "fault.started" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/FaultStarted" } } } },
+    { "if": { "properties": { "type": { "const": "fault.ended" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/FaultEnded" } } } },
+    { "if": { "properties": { "type": { "const": "point" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/Point" } } } },
+    { "if": { "properties": { "type": { "const": "probe.sample" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/ProbeSample" } } } },
+    { "if": { "properties": { "type": { "const": "load.started" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/LoadStarted" } } } },
+    { "if": { "properties": { "type": { "const": "load.point" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/LoadPoint" } } } },
+    { "if": { "properties": { "type": { "const": "load.finished" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/LoadFinished" } } } },
+    { "if": { "properties": { "type": { "const": "warning" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/Warning" } } } },
+    { "if": { "properties": { "type": { "const": "run.finished" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/RunFinished" } } } },
+    { "if": { "properties": { "type": { "const": "run.failed" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/RunFailed" } } } }
+  ],
+  "$defs": {
+    "RunStarted": {
+      "type": "object",
+      "required": ["name", "faults", "hypotheses"],
+      "properties": {
+        "name": { "type": "string" },
+        "target": { "type": "object", "properties": { "kind": { "type": "string" }, "baseUrl": { "type": "string" } } },
+        "baseline": { "type": "string", "description": "Go duration, for example 3s." },
+        "recover": { "type": "string", "description": "Go duration, for example 5s." },
+        "faults": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "kind"],
+            "properties": {
+              "name": { "type": "string" },
+              "kind": { "type": "string" },
+              "duration": { "type": "string" },
+              "tunables": { "type": "object", "description": "Fault parameters. Values of keys that look like credentials are replaced by ***." }
+            }
+          }
+        },
+        "probes": { "type": "array", "items": { "type": "string" } },
+        "hypotheses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "metric", "operator", "limit"],
+            "properties": {
+              "name": { "type": "string" },
+              "metric": { "enum": ["error_rate", "availability", "p50", "p95", "p99", "rps", "recovery"] },
+              "operator": { "enum": ["<", "<=", ">", ">="] },
+              "limit": { "type": "string" }
+            }
+          }
+        },
+        "load": { "type": "object", "properties": { "tool": { "type": "string" }, "start": { "enum": ["baseline", "inject"] } } },
+        "version": { "type": "string" },
+        "scenario": { "type": "string", "description": "Scenario YAML, redacted. Only present when asked for." }
+      }
+    },
+    "PhaseChanged": {
+      "type": "object",
+      "required": ["phase"],
+      "properties": { "phase": { "enum": ["steady", "inject", "recover"] } }
+    },
+    "FaultStarted": {
+      "type": "object",
+      "required": ["name", "kind", "intensity"],
+      "properties": {
+        "name": { "type": "string" },
+        "kind": { "type": "string" },
+        "intensity": { "type": "number" },
+        "tunables": { "type": "object" }
+      }
+    },
+    "FaultEnded": {
+      "type": "object",
+      "required": ["name", "kind", "rollback"],
+      "properties": {
+        "name": { "type": "string" },
+        "kind": { "type": "string" },
+        "rollback": { "type": "string", "description": "ok, or fail: followed by the reason." }
+      }
+    },
+    "Point": {
+      "type": "object",
+      "required": ["offsetS", "phase", "p95Ms", "errorRate", "availability", "rps", "intensity"],
+      "properties": {
+        "offsetS": { "type": "number", "minimum": 0, "description": "Start of the one-second bucket, in seconds since the run started." },
+        "phase": { "enum": ["steady", "inject", "recover"] },
+        "p95Ms": { "type": "number", "minimum": 0 },
+        "errorRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "availability": { "type": "number", "minimum": 0, "maximum": 1 },
+        "rps": { "type": "number", "minimum": 0, "description": "Probe rate, or the load generator's rate once a load series is merged." },
+        "intensity": { "type": "number" }
+      }
+    },
+    "ProbeSample": {
+      "type": "object",
+      "required": ["name", "ok", "latencyMs"],
+      "properties": {
+        "name": { "type": "string" },
+        "ok": { "type": "boolean" },
+        "latencyMs": { "type": "number", "minimum": 0 },
+        "status": { "type": "integer" },
+        "error": { "type": "string" }
+      }
+    },
+    "LoadStarted": {
+      "type": "object",
+      "required": ["tool", "startOffsetS"],
+      "properties": {
+        "tool": { "type": "string" },
+        "startOffsetS": { "type": "number", "minimum": 0, "description": "Seconds from the run's time zero to the moment the generator started." }
+      }
+    },
+    "LoadPoint": {
+      "type": "object",
+      "required": ["offsetS", "rps", "errorRate"],
+      "description": "One second of the generator's own progress, as it happens.",
+      "properties": {
+        "offsetS": { "type": "number", "minimum": 0, "description": "Seconds since the run started (the run's clock, like point.offsetS), not since the generator started." },
+        "rps": { "type": "number", "minimum": 0 },
+        "errorRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "p50Ms": { "type": "number", "minimum": 0 },
+        "p95Ms": { "type": "number", "minimum": 0 },
+        "p99Ms": { "type": "number", "minimum": 0 },
+        "requests": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "LoadFinished": {
+      "type": "object",
+      "required": ["series"],
+      "properties": {
+        "series": {
+          "type": "array",
+          "description": "The generator's whole-run series, offsets on the run's clock. Can be empty.",
+          "items": {
+            "type": "object",
+            "required": ["offsetS", "rps", "errorRate"],
+            "properties": {
+              "offsetS": { "type": "number", "minimum": 0 },
+              "rps": { "type": "number", "minimum": 0 },
+              "errorRate": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
+        "error": { "type": "string", "description": "Only when the generator failed." }
+      }
+    },
+    "Warning": {
+      "type": "object",
+      "required": ["message"],
+      "properties": { "message": { "type": "string" } }
+    },
+    "RunFinished": {
+      "type": "object",
+      "description": "The report.json content, plus diagnosis. Raw probe samples (probes) are only present when the stream carries samples. Arrays that report.json writes as null are null here too; treat null as empty.",
+      "required": ["name", "startedAt", "elapsed_ns", "phases", "faultLog", "timeseries", "hypotheses", "passed", "observedVsInjected", "recovery_ns", "diagnosis"],
+      "properties": {
+        "name": { "type": "string" },
+        "startedAt": { "type": "string", "format": "date-time" },
+        "elapsed_ns": { "type": "integer", "minimum": 0 },
+        "phases": { "type": "array", "items": { "$ref": "#/$defs/Phase" } },
+        "faultLog": { "type": ["array", "null"], "items": { "$ref": "#/$defs/FaultEvent" } },
+        "timeseries": { "type": ["array", "null"], "items": { "$ref": "#/$defs/SeriesPoint" } },
+        "hypotheses": { "type": ["array", "null"], "items": { "$ref": "#/$defs/Verdict" } },
+        "passed": { "type": "boolean" },
+        "warnings": { "type": "array", "items": { "type": "string" } },
+        "load": { "description": "The load generator's own JSON, when it produced valid JSON." },
+        "prometheus": { "type": "array", "items": { "$ref": "#/$defs/SeriesPoint" } },
+        "observedVsInjected": { "type": ["array", "null"], "items": { "$ref": "#/$defs/ObservedVsInjected" } },
+        "recovery_ns": { "type": "integer", "minimum": 0 },
+        "probes": { "type": "array", "items": { "type": "object" } },
+        "diagnosis": { "type": "string" }
+      }
+    },
+    "RunFailed": {
+      "type": "object",
+      "required": ["reason"],
+      "properties": {
+        "reason": { "type": "string" },
+        "result": { "type": "object", "description": "Partial report, when the run got far enough to have one." },
+        "faults": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "Phase": {
+      "type": "object",
+      "required": ["name", "from", "to", "errorRate", "availability", "p50_ns", "p95_ns", "p99_ns", "rps", "samples", "failed"],
+      "properties": {
+        "name": { "enum": ["steady", "inject", "recover"] },
+        "from": { "type": "string", "format": "date-time" },
+        "to": { "type": "string", "format": "date-time" },
+        "errorRate": { "type": "number" },
+        "availability": { "type": "number" },
+        "p50_ns": { "type": "integer" },
+        "p95_ns": { "type": "integer" },
+        "p99_ns": { "type": "integer" },
+        "rps": { "type": "number" },
+        "samples": { "type": "integer" },
+        "failed": { "type": "integer" }
+      }
+    },
+    "FaultEvent": {
+      "type": "object",
+      "required": ["name", "kind", "start", "end", "intensity", "rollback"],
+      "properties": {
+        "name": { "type": "string" },
+        "kind": { "type": "string" },
+        "start": { "type": "string", "format": "date-time" },
+        "end": { "type": "string", "format": "date-time" },
+        "tunables": { "type": "object", "description": "As in report.json, except that values of keys that look like credentials are replaced by ***." },
+        "intensity": { "type": "number" },
+        "rollback": { "type": "string" }
+      }
+    },
+    "SeriesPoint": {
+      "type": "object",
+      "required": ["t", "offsetS", "intensity", "p95Ms", "errorRate", "availability", "rps", "phase"],
+      "properties": {
+        "t": { "type": "string", "format": "date-time" },
+        "offsetS": { "type": "number" },
+        "intensity": { "type": "number" },
+        "p95Ms": { "type": "number" },
+        "errorRate": { "type": "number" },
+        "availability": { "type": "number" },
+        "rps": { "type": "number" },
+        "phase": { "enum": ["steady", "inject", "recover"] }
+      }
+    },
+    "Verdict": {
+      "type": "object",
+      "required": ["name", "metric", "operator", "limit", "observed", "passed"],
+      "properties": {
+        "name": { "type": "string" },
+        "metric": { "type": "string" },
+        "operator": { "type": "string" },
+        "limit": { "type": "string" },
+        "observed": { "type": "string" },
+        "passed": { "type": "boolean" }
+      }
+    },
+    "ObservedVsInjected": {
+      "type": "object",
+      "required": ["name", "injected", "observed"],
+      "properties": {
+        "name": { "type": "string" },
+        "injected": { "type": "string" },
+        "observed": { "type": "string" }
+      }
+    }
+  }
+}
