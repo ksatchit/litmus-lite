@@ -131,6 +131,42 @@ type ProbeSample struct {
 	Error     string  `json:"error,omitempty"`
 }
 
+// LoadStarted is the data of load.started. StartOffsetS is seconds from the
+// run's time zero.
+type LoadStarted struct {
+	Tool         string  `json:"tool"`
+	StartOffsetS float64 `json:"startOffsetS"`
+}
+
+// LoadPoint is the data of load.point: one second of the generator's own
+// progress. OffsetS is seconds from the run's time zero, like Point.OffsetS.
+// The percentiles, requests and failed are left out when the tool cannot
+// report them. ErrorRate is a fraction between 0 and 1.
+type LoadPoint struct {
+	OffsetS   float64  `json:"offsetS"`
+	RPS       float64  `json:"rps"`
+	ErrorRate float64  `json:"errorRate"`
+	P50Ms     *float64 `json:"p50Ms,omitempty"`
+	P95Ms     *float64 `json:"p95Ms,omitempty"`
+	P99Ms     *float64 `json:"p99Ms,omitempty"`
+	Requests  int64    `json:"requests,omitempty"`
+	Failed    int64    `json:"failed,omitempty"`
+}
+
+// LoadSeriesPoint is one second of the generator's whole-run series.
+type LoadSeriesPoint struct {
+	OffsetS   float64 `json:"offsetS"`
+	RPS       float64 `json:"rps"`
+	ErrorRate float64 `json:"errorRate"`
+}
+
+// LoadFinished is the data of load.finished. Series is the generator's whole
+// series; it can be empty. Error is set when the generator failed.
+type LoadFinished struct {
+	Series []LoadSeriesPoint `json:"series"`
+	Error  string            `json:"error,omitempty"`
+}
+
 // Warning is the data of warning.
 type Warning struct {
 	Message string `json:"message"`

@@ -32,7 +32,7 @@ hypotheses:
   - name: errors-bounded
     metric: error_rate
     operator: <
-    value: "15%"
+    value: "25%"
   - name: recovers
     metric: recovery
     operator: <=
@@ -40,7 +40,7 @@ hypotheses:
 load:
   # tool defaults to vegaload. k6 and command are the other generators.
   scenario: ./launches.vl.js
-  args: ["-vus", "5", "-duration", "12s", "-allow-target"]
+  args: ["-executor", "constant-arrival-rate", "-rate", "20", "-max-vus", "80", "-duration", "17s"]
 observability:
   prometheus:
     url: http://127.0.0.1:9090

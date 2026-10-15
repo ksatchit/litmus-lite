@@ -6,6 +6,7 @@ Recorded event streams for building and testing a consumer. The event format is 
 | --- | --- |
 | `ignite.ndjson` | `http.latency` with a 5% status override on LaunchPad. Passed. A `warning` event (Prometheus is not running). |
 | `ignite-load.ndjson` | The same fault with a load generator (`command` tool). Passed. `run.finished.timeseries` carries the merged load series. |
+| `ignite-load-live.ndjson` | A live recording, not converted from a report: the same fault with vegaload as the generator. It has real `load.started`, about one `load.point` a second (rps, error rate, p50/p95/p99), and `load.finished`, and no `synthetic` field. Has no `.report.json`. Needs vegaload on `PATH` to re-record. |
 | `ignite-failed.ndjson` | Completed with a failed hypothesis (`stays-fast`). `status` is `failed`. |
 | `cashier-charge.ndjson` | A `failpoint` fault. The fault `token` is redacted to `***`. |
 | `cashier-charge-slow.ndjson` | A `failpoint` fault that adds latency instead of errors. |

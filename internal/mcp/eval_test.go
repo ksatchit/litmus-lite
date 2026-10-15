@@ -275,3 +275,28 @@ func TestFailedToolReportsBothStreams(t *testing.T) {
 		t.Fatalf("%v", err)
 	}
 }
+
+// A run that finished with a failed hypothesis exits 3. The agent gets its JSON
+// and the live view note as for a pass, not an error with both streams glued
+// together.
+func TestNotPassedRunIsAResultNotAnError(t *testing.T) {
+	dir := t.TempDir()
+	script := filepath.Join(dir, "fake-cli")
+	body := "#!/bin/sh\necho '{\"passed\":false}'\necho 'live view: http://127.0.0.1:7080/p/p-abc' 1>&2\nexit 3\n"
+	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("LITMUS_LITE_BIN", script)
+	resp := handle(req{ID: json.RawMessage(`1`), Method: "tools/call",
+		Params: json.RawMessage(`{"name":"run_test","arguments":{"file":"a.chaos.yaml"}}`)})
+	result := resp["result"].(map[string]any)
+	if result["isError"] != nil {
+		t.Fatalf("a failed hypothesis was reported as a tool error: %v", result)
+	}
+	items := result["content"].([]map[string]string)
+	var v map[string]any
+	if len(items) != 2 || json.Unmarshal([]byte(items[0]["text"]), &v) != nil || v["passed"] != false ||
+		!strings.HasPrefix(items[1]["text"], "live view:") {
+		t.Fatalf("content %v", items)
+	}
+}

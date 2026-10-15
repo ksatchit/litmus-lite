@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ksatchit/litmus-lite/internal/compose"
 	"github.com/ksatchit/litmus-lite/internal/probe"
 	"github.com/ksatchit/litmus-lite/internal/report"
 	"github.com/ksatchit/litmus-lite/internal/scenario"
@@ -303,6 +304,29 @@ func (r *Recorder) Sample(s probe.Sample) {
 
 // Warning implements engine.Emitter.
 func (r *Recorder) Warning(msg string) { r.emit(TypeWarning, Warning{Message: msg}) }
+
+// LoadStarted implements engine.Emitter.
+func (r *Recorder) LoadStarted(tool string, startOffsetS float64) {
+	r.emit(TypeLoadStarted, LoadStarted{Tool: tool, StartOffsetS: round3(startOffsetS)})
+}
+
+// LoadPoint implements engine.Emitter.
+func (r *Recorder) LoadPoint(p compose.LivePoint) {
+	r.emit(TypeLoadPoint, LoadPoint{
+		OffsetS: round3(p.OffsetS), RPS: p.RPS, ErrorRate: p.ErrorRate,
+		P50Ms: p.P50Ms, P95Ms: p.P95Ms, P99Ms: p.P99Ms,
+		Requests: p.Requests, Failed: p.Failed,
+	})
+}
+
+// LoadFinished implements engine.Emitter.
+func (r *Recorder) LoadFinished(series []compose.LoadPoint, errMsg string) {
+	f := LoadFinished{Series: make([]LoadSeriesPoint, 0, len(series)), Error: errMsg}
+	for _, p := range series {
+		f.Series = append(f.Series, LoadSeriesPoint{OffsetS: round3(p.OffsetS), RPS: p.RPS, ErrorRate: p.ErrorRate})
+	}
+	r.emit(TypeLoadFinished, f)
+}
 
 // Finished implements engine.Emitter.
 func (r *Recorder) Finished(res *report.Result) {

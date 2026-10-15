@@ -245,6 +245,7 @@ func cmdRun(args []string) int {
 		ctx, stop = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 		defer stop()
 		eopt.Emitter = st.rec
+		eopt.RunID = st.rec.RunID()
 		defer func() { st.close(ctx) }()
 	}
 	res, err := engine.Run(ctx, sc, eopt)

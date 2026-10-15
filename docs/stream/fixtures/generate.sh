@@ -31,6 +31,23 @@ record() { # NAME SCENARIO
   "$bin" stream validate "$here/$name.ndjson"
 }
 
+# A live recording: the run streams itself (no report to convert), with vegaload
+# as the load generator, so the file has real load.started, load.point and
+# load.finished events. Needs vegaload (a build with -stream-file) on PATH.
+record_live() { # NAME SCENARIO
+  local name="$1" scenario="$2"
+  [ -z "${ONLY:-}" ] || [ "$ONLY" = "$name" ] || return 0
+  if ! command -v vegaload >/dev/null 2>&1; then
+    echo "skipping $name: vegaload is not on PATH" >&2
+    return 0
+  fi
+  rm -f "$here/$name.ndjson"
+  LITMUS_LITE_CONFIG_DIR="$tmp/cfg" VEGALOAD_CONFIG_DIR="$tmp/vcfg" \
+    "$bin" run -no-live -stream-file "$here/$name.ndjson" -run-id "$name" \
+    -out "$tmp/$name.report.json" -html "$tmp/$name.html" "$scenario" >/dev/null || [ $? -eq 3 ]
+  "$bin" stream validate "$here/$name.ndjson"
+}
+
 # Use LaunchPad when it is already up on :8080. Otherwise start the stand-in.
 if ! curl -fsS -o /dev/null http://127.0.0.1:8080/healthz 2>/dev/null; then
   python3 "$here/src/stub.py" & pids+=($!)
@@ -46,3 +63,4 @@ record ignite-load "$here/src/ignite-load.chaos.yaml"
 record ignite-failed "$here/src/ignite-failed.chaos.yaml"
 record cashier-charge "$root/examples/cashier/charge.chaos.yaml"
 record cashier-charge-slow "$root/examples/cashier/charge-slow.chaos.yaml"
+record_live ignite-load-live "$root/examples/launchpad/ignite-load.chaos.yaml"

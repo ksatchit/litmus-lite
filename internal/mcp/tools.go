@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -318,8 +319,21 @@ func runTool(name string, args map[string]any) (toolResult, error) {
 	cmd := exec.Command(bin, argv...)
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
+		// Exit code 3 is a finished run or comparison whose verdict is "not
+		// passed". That is a result, not a failure of the tool: the JSON says
+		// passed:false and the notes (including the live view link) still matter,
+		// so the agent gets both exactly as for a pass. Any other exit code is an
+		// error, as before.
+		var ee *exec.ExitError
+		if errors.As(err, &ee) && ee.ExitCode() == exitNotPassed {
+			return toolResult{Text: stdout.String(), Notes: strings.TrimSpace(stderr.String())}, nil
+		}
 		both := strings.TrimSpace(stdout.String() + stderr.String())
 		return toolResult{Text: both}, fmt.Errorf("%s: %w", both, err)
 	}
 	return toolResult{Text: stdout.String(), Notes: strings.TrimSpace(stderr.String())}, nil
 }
+
+// exitNotPassed is the CLI exit code of a run or comparison that finished and
+// did not pass (a failed hypothesis, a regression).
+const exitNotPassed = 3

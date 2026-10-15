@@ -21,6 +21,8 @@ type Options struct {
 	// Emitter, when set, is told what happens during the run (run streaming).
 	// The engine never waits on it and its behaviour does not change the result.
 	Emitter Emitter
+	// RunID, when set, is exported to a load generator as LITMUS_LITE_RUN_ID.
+	RunID string
 }
 
 // runState lets Run see which faults were armed when the run ends early.
@@ -289,10 +291,37 @@ func run(ctx context.Context, sc *scenario.Scenario, opt Options, em Emitter, st
 			return
 		}
 		loadStart = time.Now()
+		startOffset := loadStart.Sub(res.StartedAt).Seconds()
+		tool := sc.Load.Tool
+		if tool == "" {
+			tool = "vegaload"
+		}
+		if opt.Emitter != nil {
+			em.LoadStarted(tool, startOffset)
+		}
+		ropt := compose.RunOptions{RunID: opt.RunID}
+		if opt.Emitter != nil {
+			ropt.Progress = func(p compose.LivePoint) {
+				p.OffsetS += startOffset
+				em.LoadPoint(p)
+			}
+		}
 		loadWG.Add(1)
 		go func() {
 			defer loadWG.Done()
-			out, err := compose.Run(loadCtx, opt.LoadBin, opt.ScenarioDir, sc.Load)
+			out, err := compose.RunWith(loadCtx, opt.LoadBin, opt.ScenarioDir, sc.Load, ropt)
+			if opt.Emitter != nil {
+				shifted := make([]compose.LoadPoint, 0, len(out.Series))
+				for _, lp := range out.Series {
+					lp.OffsetS += startOffset
+					shifted = append(shifted, lp)
+				}
+				msg := ""
+				if err != nil {
+					msg = err.Error()
+				}
+				em.LoadFinished(shifted, msg)
+			}
 			label := out.Tool
 			if label == "" {
 				label = "load"

@@ -24,6 +24,9 @@
     { "if": { "properties": { "type": { "const": "fault.ended" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/FaultEnded" } } } },
     { "if": { "properties": { "type": { "const": "point" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/Point" } } } },
     { "if": { "properties": { "type": { "const": "probe.sample" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/ProbeSample" } } } },
+    { "if": { "properties": { "type": { "const": "load.started" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/LoadStarted" } } } },
+    { "if": { "properties": { "type": { "const": "load.point" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/LoadPoint" } } } },
+    { "if": { "properties": { "type": { "const": "load.finished" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/LoadFinished" } } } },
     { "if": { "properties": { "type": { "const": "warning" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/Warning" } } } },
     { "if": { "properties": { "type": { "const": "run.finished" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/RunFinished" } } } },
     { "if": { "properties": { "type": { "const": "run.failed" } }, "required": ["type"] }, "then": { "properties": { "data": { "$ref": "#/$defs/RunFailed" } } } }
@@ -115,6 +118,49 @@
         "latencyMs": { "type": "number", "minimum": 0 },
         "status": { "type": "integer" },
         "error": { "type": "string" }
+      }
+    },
+    "LoadStarted": {
+      "type": "object",
+      "required": ["tool", "startOffsetS"],
+      "properties": {
+        "tool": { "type": "string" },
+        "startOffsetS": { "type": "number", "minimum": 0, "description": "Seconds from the run's time zero to the moment the generator started." }
+      }
+    },
+    "LoadPoint": {
+      "type": "object",
+      "required": ["offsetS", "rps", "errorRate"],
+      "description": "One second of the generator's own progress, as it happens.",
+      "properties": {
+        "offsetS": { "type": "number", "minimum": 0, "description": "Seconds since the run started (the run's clock, like point.offsetS), not since the generator started." },
+        "rps": { "type": "number", "minimum": 0 },
+        "errorRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "p50Ms": { "type": "number", "minimum": 0 },
+        "p95Ms": { "type": "number", "minimum": 0 },
+        "p99Ms": { "type": "number", "minimum": 0 },
+        "requests": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "LoadFinished": {
+      "type": "object",
+      "required": ["series"],
+      "properties": {
+        "series": {
+          "type": "array",
+          "description": "The generator's whole-run series, offsets on the run's clock. Can be empty.",
+          "items": {
+            "type": "object",
+            "required": ["offsetS", "rps", "errorRate"],
+            "properties": {
+              "offsetS": { "type": "number", "minimum": 0 },
+              "rps": { "type": "number", "minimum": 0 },
+              "errorRate": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          }
+        },
+        "error": { "type": "string", "description": "Only when the generator failed." }
       }
     },
     "Warning": {

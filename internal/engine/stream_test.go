@@ -6,11 +6,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/ksatchit/litmus-lite/internal/compose"
 	"github.com/ksatchit/litmus-lite/internal/faults"
 	"github.com/ksatchit/litmus-lite/internal/probe"
 	"github.com/ksatchit/litmus-lite/internal/report"
@@ -26,6 +29,11 @@ type recorder struct {
 	finished *report.Result
 	failed   *failedCall
 	started  *scenario.Scenario
+	loadPts  []compose.LivePoint
+	loadFin  []compose.LoadPoint
+	loadErr  string
+	loadTool string
+	loadAt   float64
 }
 
 type failedCall struct {
@@ -55,6 +63,23 @@ func (r *recorder) Sample(probe.Sample) {
 	r.mu.Lock()
 	r.samples++
 	r.mu.Unlock()
+}
+func (r *recorder) LoadStarted(tool string, at float64) {
+	r.mu.Lock()
+	r.loadTool, r.loadAt = tool, at
+	r.mu.Unlock()
+	r.add("load.started")
+}
+func (r *recorder) LoadPoint(p compose.LivePoint) {
+	r.mu.Lock()
+	r.loadPts = append(r.loadPts, p)
+	r.mu.Unlock()
+}
+func (r *recorder) LoadFinished(series []compose.LoadPoint, errMsg string) {
+	r.mu.Lock()
+	r.loadFin, r.loadErr = series, errMsg
+	r.mu.Unlock()
+	r.add("load.finished")
 }
 func (r *recorder) Finished(res *report.Result) { r.finished = res; r.add("finished") }
 func (r *recorder) Failed(reason string, res *report.Result, started []report.FaultEvent) {
@@ -366,5 +391,124 @@ func TestLivePointWaitsForSlowProbes(t *testing.T) {
 		if p.P95Ms != f.P95Ms || p.RPS != f.RPS || p.ErrorRate != f.ErrorRate {
 			t.Fatalf("point %d: live %+v, final %+v", i, p, f)
 		}
+	}
+}
+
+// fakeVegaLoad writes a stand-in for the vegaload binary. It records its
+// arguments and a few variables of its environment in notes, and when it is
+// given -stream-file it writes three point events (one per 100 ms) in
+// vegaload.io/stream/v1 before it writes its -out result.
+func fakeVegaLoad(t *testing.T, notes string) string {
+	t.Helper()
+	// A developer's own setting must not decide what the test sees.
+	t.Setenv("VEGALOAD_LIVE", "on")
+	t.Setenv("VEGALOAD_RUN_ID", "")
+	t.Setenv("LITMUS_LITE_RUN_ID", "")
+	if runtime.GOOS == "windows" {
+		t.Skip("shell script stand-in")
+	}
+	script := `#!/bin/sh
+sf=""; out=""; ALLARGS="$*"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -stream-file) sf="$2"; shift ;;
+    -out) out="$2"; shift ;;
+  esac
+  shift
+done
+echo "live=$VEGALOAD_LIVE run=$LITMUS_LITE_RUN_ID vrun=$VEGALOAD_RUN_ID sf=$sf args=$ALLARGS" >> ` + notes + `
+if [ -n "$sf" ]; then
+  for i in 0 1 2; do
+    printf '{"schema":"vegaload.io/stream/v1","runId":"x","seq":%d,"type":"point","data":{"offsetS":%d,"rps":%d.5,"requests":%d,"failed":0,"errorRate":0.0%d,"p50Ms":10.5,"p95Ms":2%d.0,"p99Ms":30.0}}\n' $((i+2)) $i $((100+i)) $((100+i)) $i $i >> "$sf"
+    sleep 0.1
+  done
+fi
+printf '{"time_series":[{"offset_ns":0,"rps":100.5,"error_rate":0},{"offset_ns":1000000000,"rps":101.5,"error_rate":0.01},{"offset_ns":2000000000,"rps":102.5,"error_rate":0.02}],"total":304,"failed":3,"error_rate":0.01}' > "$out"
+`
+	path := filepath.Join(t.TempDir(), "vegaload")
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func loadScenario(srv *httptest.Server) *scenario.Scenario {
+	return &scenario.Scenario{
+		Metadata: scenario.Metadata{Name: "with-load"}, Baseline: "300ms", Recover: "300ms",
+		Faults: []scenario.Fault{{Name: "a", Kind: "test.scripted", Duration: "600ms"}},
+		Probes: []scenario.Probe{{
+			Name: "p", Type: "http", URL: srv.URL, Interval: "100ms", Timeout: "3s", Mode: "continuous",
+		}},
+		Load: &scenario.LoadSpec{Tool: "vegaload", Scenario: "x.vl.js", Start: scenario.LoadStartInject},
+	}
+}
+
+// A streamed run asks vegaload for its points, relays them in order with the
+// offsets moved to the run's clock, and ends the load with its series.
+func TestStreamedRunRelaysTheLoadGeneratorsPoints(t *testing.T) {
+	srv := okServer(t)
+	scriptedStart = func(scenario.Fault) (faults.Running, error) { return &fakeRun{}, nil }
+	notes := filepath.Join(t.TempDir(), "notes")
+	em := &recorder{}
+	res, err := Run(context.Background(), loadScenario(srv), Options{
+		Emitter: em, RunID: "run-42", LoadBin: fakeVegaLoad(t, notes),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(notes)
+	line := string(b)
+	for _, want := range []string{"live=off", "run=run-42", "vrun=run-42", "sf=", "-no-open", "-report "} {
+		if !strings.Contains(line, want) {
+			t.Fatalf("the generator's environment lacks %q: %s", want, line)
+		}
+	}
+	if strings.Contains(line, "sf= ") || strings.HasSuffix(strings.TrimSpace(line), "sf=") {
+		t.Fatalf("no -stream-file was passed: %s", line)
+	}
+	if em.loadTool != "vegaload" || em.loadAt < 0.25 {
+		t.Fatalf("load.started: %q at %.2f, want vegaload at about the start of inject", em.loadTool, em.loadAt)
+	}
+	if len(em.loadPts) != 3 {
+		t.Fatalf("%d live load points, want 3: %+v", len(em.loadPts), em.loadPts)
+	}
+	for i, p := range em.loadPts {
+		if want := em.loadAt + float64(i); p.OffsetS != want {
+			t.Fatalf("point %d offset %.2f, want %.2f (generator offset moved to the run's clock)", i, p.OffsetS, want)
+		}
+		if p.P95Ms == nil || *p.P95Ms != float64(20+i) || p.RPS != float64(100+i)+0.5 {
+			t.Fatalf("point %d lost data: %+v", i, p)
+		}
+	}
+	if len(em.loadFin) != 3 || em.loadFin[1].OffsetS != em.loadAt+1 || em.loadErr != "" {
+		t.Fatalf("load.finished: %+v err %q", em.loadFin, em.loadErr)
+	}
+	log := strings.Join(em.log, ",")
+	if i, j, k := strings.Index(log, "load.started"), strings.Index(log, "load.finished"), strings.Index(log, "finished"); !(i >= 0 && i < j && j < k) {
+		t.Fatalf("order: %s", log)
+	}
+	if len(res.Load) == 0 {
+		t.Fatal("the generator's own result is still kept")
+	}
+}
+
+// Without an emitter nothing changes for the generator: no -stream-file, no
+// -no-open, and the run id is not made up.
+func TestRunWithoutAnEmitterDoesNotStreamTheGenerator(t *testing.T) {
+	srv := okServer(t)
+	scriptedStart = func(scenario.Fault) (faults.Running, error) { return &fakeRun{}, nil }
+	notes := filepath.Join(t.TempDir(), "notes")
+	if _, err := Run(context.Background(), loadScenario(srv), Options{LoadBin: fakeVegaLoad(t, notes)}); err != nil {
+		t.Fatal(err)
+	}
+	b, _ := os.ReadFile(notes)
+	if strings.Contains(string(b), "sf=/") {
+		t.Fatalf("a stream file was requested without a stream: %s", b)
+	}
+	if !strings.Contains(string(b), "live=off") {
+		t.Fatalf("the generator must never open its own live view under litmus-lite: %s", b)
+	}
+	if strings.Contains(string(b), "-report ") || strings.Contains(string(b), "-no-open") {
+		t.Fatalf("an unstreamed run keeps the generator's own report behaviour: %s", b)
 	}
 }

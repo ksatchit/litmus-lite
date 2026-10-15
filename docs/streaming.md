@@ -249,9 +249,9 @@ Every event is a JSON object:
 | `fault.ended` | `name`, `kind`, `rollback` (`ok` or `fail: …`) | Fault rolled back |
 | `point` | `offsetS`, `phase`, `p95Ms`, `errorRate`, `availability`, `rps`, `intensity` | Once per second, after each one-second bucket closes |
 | `probe.sample` | `name`, `ok`, `latencyMs`, `status`, `error` | Per probe, only with `-stream-samples` |
-| `load.started` | `tool`, `startOffsetS` | Load generator started |
-| `load.point` | `offsetS`, `rps`, `errorRate` | Generator progress, when the tool can report it |
-| `load.finished` | `series[]`, `error` | Generator exited |
+| `load.started` | `tool`, `startOffsetS` (seconds from the run's time zero) | Load generator started |
+| `load.point` | `offsetS` (run clock, like `point.offsetS`), `rps`, `errorRate`, optional `p50Ms`, `p95Ms`, `p99Ms`, `requests`, `failed` | Generator progress, about once a second, when the tool can report it. Today only vegaload does |
+| `load.finished` | `series[]` (`offsetS`, `rps`, `errorRate`, on the run clock; can be empty), `error` only on failure | Generator exited |
 | `warning` | `message` | Anything that goes to `res.Warnings`, including dropped events |
 | `run.finished` | The `report.json` content plus `diagnosis` (the `diagnose` text). Raw `probes` only with `-stream-samples`. Credentials in `faultLog` tunables are redacted. | Last event of a run that completed |
 | `run.failed` | `reason` (for example a failed steady-state probe, or `interrupted`), partial result if any | Last event of a run that did not complete |
@@ -261,7 +261,7 @@ Every stream ends with exactly one of `run.finished` or `run.failed`, including 
 ### Rules for consumers
 
 1. **`run.finished` is authoritative.** Replace any live series with `data.timeseries`. The final series includes load data that may only arrive late.
-2. **Live `point.rps` comes from the probe rate.** When `load.point` events exist, prefer them. The final series merges both, as `report.json` does today.
+2. **Live `point.rps` comes from the probe rate.** When `load.point` events exist, prefer them: they carry the generator's own rate, error rate and (for vegaload) latency percentiles, so a consumer can draw the load next to the probes. Their `offsetS` is on the run's clock, not the generator's. `load.finished.series` is the generator's whole series and fills seconds a consumer missed. The final series merges both, as `report.json` does today.
 3. **Verdicts come only from `run.finished`.** Hypotheses are judged on the whole inject window, so there are no live pass or fail verdicts.
 4. **A stream is self-sufficient.** A chaos stream is complete without a load stream, and the reverse.
 
@@ -279,7 +279,9 @@ litmus-lite run checkout.chaos.yaml -run-id demo-42 -stream-pull 127.0.0.1:7070
 vegaload run checkout.vl.js -run-id demo-42 ...      # when the generator supports it
 ```
 
-Litmus-lite also exports `LITMUS_LITE_RUN_ID` to a generator it starts. A consumer joins on `runId` when present, otherwise on a shared label plus overlapping `ts` ranges. Any generator can contribute by emitting `load.point` and `load.finished` events in this format.
+When litmus-lite streams a composed run with vegaload, it starts vegaload with `-stream-file` and `-no-open`, reads the per-second points as vegaload writes them and re-emits them as `load.point` in its own stream, so the whole run is one stream with one `runId`. It also sets `VEGALOAD_LIVE=off` for the generator in every composed run, streamed or not: litmus-lite owns the view, and the generator must not open its own page or push a second run. A vegaload without `-stream-file` still runs; its points arrive in `load.finished` at the end, with a warning. The `k6` and `command` tools emit `load.started` and `load.finished` only.
+
+Litmus-lite also exports `LITMUS_LITE_RUN_ID` to a generator it starts (and `VEGALOAD_RUN_ID` to vegaload). A consumer joins on `runId` when present, otherwise on a shared label plus overlapping `ts` ranges. Any generator can contribute by emitting `load.point` and `load.finished` events in this format.
 
 ### When the load starts
 
@@ -289,7 +291,7 @@ Today the generator starts when the fault is injected. A new optional field star
 load:
   start: baseline      # or inject (default)
   scenario: ./checkout.vl.js
-  args: ["-vus", "180", "-duration", "23s", "-allow-target"]
+  args: ["-vus", "180", "-duration", "23s"]
 ```
 
 The default stays `inject`, so existing scenarios behave as before. With `baseline`, the generator starts at the same moment as the probes, and its series is aligned to that start instead of the inject start. Set the generator's own duration to cover baseline, inject and recover. The generator is stopped if the run ends early.

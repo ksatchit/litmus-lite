@@ -49,6 +49,12 @@ func Active(load *scenario.LoadSpec) bool {
 // warning and a nil error so the chaos run continues.
 // binOverride, when set, replaces the tool executable (tests and explicit paths).
 func Run(ctx context.Context, binOverride, baseDir string, load *scenario.LoadSpec) (Output, error) {
+	return RunWith(ctx, binOverride, baseDir, load, RunOptions{})
+}
+
+// RunWith is Run with the options of a streamed run: the run id exported to
+// the generator and, for vegaload, live progress.
+func RunWith(ctx context.Context, binOverride, baseDir string, load *scenario.LoadSpec, opts RunOptions) (Output, error) {
 	if !Active(load) {
 		return Output{}, nil
 	}
@@ -58,11 +64,11 @@ func Run(ctx context.Context, binOverride, baseDir string, load *scenario.LoadSp
 	}
 	switch tool {
 	case "vegaload":
-		return runVegaLoad(ctx, binOverride, baseDir, load)
+		return runVegaLoad(ctx, binOverride, baseDir, load, opts)
 	case "k6":
-		return runK6(ctx, binOverride, baseDir, load)
+		return runK6(ctx, binOverride, baseDir, load, opts)
 	case "command":
-		return runCommand(ctx, binOverride, baseDir, load)
+		return runCommand(ctx, binOverride, baseDir, load, opts)
 	default:
 		return Output{}, fmt.Errorf("unknown load tool %q (want vegaload, k6, or command)", tool)
 	}
@@ -138,4 +144,22 @@ func asRaw(b []byte) json.RawMessage {
 		return nil
 	}
 	return json.RawMessage(b)
+}
+
+// childEnv is the environment of a generator: the parent's, plus the run id so
+// that anything the generator records can be joined to this run. A generator
+// that streams to the live view on its own is switched off when vegaload is
+// the tool, because litmus-lite owns the view of a composed run.
+func childEnv(tool string, opts RunOptions) []string {
+	env := os.Environ()
+	if opts.RunID != "" {
+		env = append(env, "LITMUS_LITE_RUN_ID="+opts.RunID)
+		if tool == "vegaload" {
+			env = append(env, "VEGALOAD_RUN_ID="+opts.RunID)
+		}
+	}
+	if tool == "vegaload" {
+		env = append(env, "VEGALOAD_LIVE=off")
+	}
+	return env
 }

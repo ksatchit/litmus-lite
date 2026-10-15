@@ -13,6 +13,7 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
+	"github.com/ksatchit/litmus-lite/internal/compose"
 	"github.com/ksatchit/litmus-lite/internal/probe"
 	"github.com/ksatchit/litmus-lite/internal/report"
 	"github.com/ksatchit/litmus-lite/internal/scenario"
@@ -406,5 +407,44 @@ func TestRunIDs(t *testing.T) {
 	a, b := NewRunID(), NewRunID()
 	if len(a) != 12 || a == b || ValidRunID(a) != nil {
 		t.Fatalf("ids %q %q", a, b)
+	}
+}
+
+// The load events a recorder writes validate against the published schema,
+// leave out what the generator did not report, and keep the order they came in.
+func TestRecorderWritesLoadEventsThatMatchTheSchema(t *testing.T) {
+	sink := &memSink{}
+	rec := NewRecorder(RecorderOptions{RunID: "load-1"}, sink)
+	rec.Started(&scenario.Scenario{Metadata: scenario.Metadata{Name: "n"}}, time.Now())
+	p95 := 180.5
+	rec.LoadStarted("vegaload", 3.0004)
+	rec.LoadPoint(compose.LivePoint{OffsetS: 4, RPS: 118, ErrorRate: 0.01, P95Ms: &p95, Requests: 118, Failed: 1})
+	rec.LoadPoint(compose.LivePoint{OffsetS: 5, RPS: 120}) // a tool that reports no percentiles
+	rec.LoadFinished([]compose.LoadPoint{{OffsetS: 3, RPS: 120}, {OffsetS: 4, RPS: 118, ErrorRate: 0.01}}, "")
+	rec.Close(time.Second)
+
+	if got, want := strings.Join(sink.types(t), ","), "run.started,load.started,load.point,load.point,load.finished"; got != want {
+		t.Fatalf("types %s, want %s", got, want)
+	}
+	sch := compileSchema(t)
+	for i, l := range sink.lines {
+		v, err := jsonschema.UnmarshalJSON(bytes.NewReader(l))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := sch.Validate(v); err != nil {
+			t.Fatalf("event %d: %v\n%s", i+1, err, l)
+		}
+	}
+	var started, second Envelope
+	_ = json.Unmarshal(sink.lines[1], &started)
+	_ = json.Unmarshal(sink.lines[3], &second)
+	if !strings.Contains(string(started.Data), `"startOffsetS":3`) || strings.Contains(string(started.Data), "3.0004") {
+		t.Fatalf("offsets are rounded to milliseconds: %s", started.Data)
+	}
+	for _, key := range []string{"p50Ms", "p95Ms", "p99Ms", "requests", "failed"} {
+		if strings.Contains(string(second.Data), key) {
+			t.Fatalf("%s should be left out when not reported: %s", key, second.Data)
+		}
 	}
 }

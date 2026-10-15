@@ -54,7 +54,7 @@ func classOf(typ string) int {
 	switch typ {
 	case TypeProbeSample:
 		return classSample
-	case TypePoint:
+	case TypePoint, TypeLoadPoint:
 		return classPoint
 	default:
 		return classLifecycle

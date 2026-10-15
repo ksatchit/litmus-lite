@@ -92,6 +92,9 @@ func TestSchemaRejectsMalformedEvents(t *testing.T) {
 		"bad phase":         `{"schema":"litmus-lite.io/stream/v1","runId":"r","seq":1,"ts":"2026-10-14T08:00:00Z","offsetS":0,"type":"phase.changed","data":{"phase":"nope"}}`,
 		"point missing p95": `{"schema":"litmus-lite.io/stream/v1","runId":"r","seq":1,"ts":"2026-10-14T08:00:00Z","offsetS":0,"type":"point","data":{"offsetS":0,"phase":"steady","errorRate":0,"availability":1,"rps":1,"intensity":0}}`,
 		"error rate > 1":    `{"schema":"litmus-lite.io/stream/v1","runId":"r","seq":1,"ts":"2026-10-14T08:00:00Z","offsetS":0,"type":"point","data":{"offsetS":0,"phase":"steady","p95Ms":1,"errorRate":4,"availability":1,"rps":1,"intensity":0}}`,
+		"load point no rps": `{"schema":"litmus-lite.io/stream/v1","runId":"r","seq":1,"ts":"2026-10-14T08:00:00Z","offsetS":0,"type":"load.point","data":{"offsetS":1,"errorRate":0}}`,
+		"load error rate>1": `{"schema":"litmus-lite.io/stream/v1","runId":"r","seq":1,"ts":"2026-10-14T08:00:00Z","offsetS":0,"type":"load.point","data":{"offsetS":1,"rps":1,"errorRate":2}}`,
+		"load started none": `{"schema":"litmus-lite.io/stream/v1","runId":"r","seq":1,"ts":"2026-10-14T08:00:00Z","offsetS":0,"type":"load.started","data":{"tool":"vegaload"}}`,
 		"failed no reason":  `{"schema":"litmus-lite.io/stream/v1","runId":"r","seq":1,"ts":"2026-10-14T08:00:00Z","offsetS":0,"type":"run.failed","data":{}}`,
 	} {
 		v, _ := jsonschema.UnmarshalJSON(strings.NewReader(line))
@@ -157,7 +160,7 @@ func TestFixturesHaveNoCredentials(t *testing.T) {
 
 func TestFixtureStatuses(t *testing.T) {
 	want := map[string]string{
-		"ignite.ndjson": "passed", "ignite-load.ndjson": "passed", "ignite-failed.ndjson": "failed",
+		"ignite.ndjson": "passed", "ignite-load.ndjson": "passed", "ignite-load-live.ndjson": "passed", "ignite-failed.ndjson": "failed",
 		"cashier-charge.ndjson": "passed", "cashier-charge-slow.ndjson": "passed", "run-failed.ndjson": "errored",
 	}
 	for name, status := range want {

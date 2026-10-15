@@ -89,7 +89,7 @@ func (l *LiveServer) Write(line []byte) error {
 // evict removes n events: samples first, then points, oldest first. The caller
 // holds the lock.
 func (l *LiveServer) evict(n int) {
-	for _, drop := range []string{TypeProbeSample, TypePoint} {
+	for _, drop := range []string{TypeProbeSample, TypePoint, TypeLoadPoint} {
 		if n <= 0 {
 			return
 		}

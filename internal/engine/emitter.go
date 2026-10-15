@@ -4,6 +4,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ksatchit/litmus-lite/internal/compose"
 	"github.com/ksatchit/litmus-lite/internal/probe"
 	"github.com/ksatchit/litmus-lite/internal/report"
 	"github.com/ksatchit/litmus-lite/internal/scenario"
@@ -31,6 +32,14 @@ type Emitter interface {
 	Sample(s probe.Sample)
 	// Warning mirrors a line added to Result.Warnings.
 	Warning(msg string)
+	// LoadStarted is called when a load generator is started. startOffsetS is
+	// seconds from the run's time zero. LoadPoint is one second of its
+	// progress and LoadFinished is called once when it exits; offsets in both
+	// count from the run's time zero. LoadFinished is not called when no
+	// generator was started, and LoadPoint only when the tool reports progress.
+	LoadStarted(tool string, startOffsetS float64)
+	LoadPoint(p compose.LivePoint)
+	LoadFinished(series []compose.LoadPoint, errMsg string)
 	// Finished carries the complete result of a run that ran to the end.
 	Finished(res *report.Result)
 	// Failed ends a run that did not complete. res is nil unless the run got
@@ -48,6 +57,9 @@ func (nopEmitter) FaultEnded(report.FaultEvent)                       {}
 func (nopEmitter) Point(report.Point)                                 {}
 func (nopEmitter) Sample(probe.Sample)                                {}
 func (nopEmitter) Warning(string)                                     {}
+func (nopEmitter) LoadStarted(string, float64)                        {}
+func (nopEmitter) LoadPoint(compose.LivePoint)                        {}
+func (nopEmitter) LoadFinished([]compose.LoadPoint, string)           {}
 func (nopEmitter) Finished(*report.Result)                            {}
 func (nopEmitter) Failed(string, *report.Result, []report.FaultEvent) {}
 
