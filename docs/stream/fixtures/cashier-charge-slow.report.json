@@ -1,0 +1,484 @@
+{
+  "name": "cashier-charge-slow",
+  "startedAt": "2026-10-14T22:31:03.034023+05:30",
+  "elapsed_ns": 13004445500,
+  "phases": [
+    {
+      "name": "steady",
+      "from": "2026-10-14T22:31:03.034609+05:30",
+      "to": "2026-10-14T22:31:06.035794+05:30",
+      "errorRate": 0,
+      "availability": 1,
+      "p50_ns": 364334,
+      "p95_ns": 457625,
+      "p99_ns": 457625,
+      "rps": 3.3321170184330344,
+      "samples": 10,
+      "failed": 0
+    },
+    {
+      "name": "inject",
+      "from": "2026-10-14T22:31:06.035794+05:30",
+      "to": "2026-10-14T22:31:12.036891+05:30",
+      "errorRate": 0,
+      "availability": 1,
+      "p50_ns": 501274500,
+      "p95_ns": 501575167,
+      "p99_ns": 501575167,
+      "rps": 1.9996945050040584,
+      "samples": 12,
+      "failed": 0
+    },
+    {
+      "name": "recover",
+      "from": "2026-10-14T22:31:12.036891+05:30",
+      "to": "2026-10-14T22:31:16.038831+05:30",
+      "errorRate": 0,
+      "availability": 1,
+      "p50_ns": 418375,
+      "p95_ns": 510000,
+      "p99_ns": 510000,
+      "rps": 3.2485215499269353,
+      "samples": 13,
+      "failed": 0
+    }
+  ],
+  "faultLog": [
+    {
+      "name": "charge-slows",
+      "kind": "failpoint",
+      "start": "2026-10-14T22:31:06.036565+05:30",
+      "end": "2026-10-14T22:31:12.037596+05:30",
+      "tunables": {
+        "name": "charge-slow",
+        "token": "cashier-demo",
+        "url": "http://127.0.0.1:8091/_litmus/failpoint"
+      },
+      "intensity": 100,
+      "rollback": "ok"
+    }
+  ],
+  "probes": [
+    {
+      "at": "2026-10-14T22:31:03.034025+05:30",
+      "name": "healthz",
+      "ok": true,
+      "latency_ns": 563292,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:03.33498+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 355042,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:03.635699+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 342375,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:03.935722+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 457625,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:04.235736+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 513667,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:04.535734+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 393750,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:04.835729+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 247541,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:05.135742+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 364334,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:05.435465+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 323833,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:05.735174+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 393166,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:06.035761+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 457542,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:06.335176+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 501718792,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:06.836944+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 501485875,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:07.338457+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 500864167,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:07.839344+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 500959709,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:08.340326+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 500591708,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:08.840939+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 500593541,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:09.341555+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 501374875,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:09.842968+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 501485416,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:10.344475+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 501274500,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:10.845775+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 501483292,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:11.347284+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 501575167,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:11.848885+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 500706084,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:12.349613+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 177333,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:12.635804+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 485291,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:12.935286+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 408167,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:13.235637+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 353917,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:13.536015+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 467208,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:13.8357+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 438791,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:14.136036+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 483417,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:14.435243+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 353041,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:14.735641+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 331292,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:15.03564+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 560000,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:15.336069+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 347500,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:15.635691+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 418375,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:15.936107+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 510000,
+      "status": 200
+    }
+  ],
+  "timeseries": [
+    {
+      "t": "2026-10-14T22:31:03.034023+05:30",
+      "offsetS": 0,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 4,
+      "phase": "steady"
+    },
+    {
+      "t": "2026-10-14T22:31:04.034023+05:30",
+      "offsetS": 1,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 3,
+      "phase": "steady"
+    },
+    {
+      "t": "2026-10-14T22:31:05.034023+05:30",
+      "offsetS": 2,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 3,
+      "phase": "steady"
+    },
+    {
+      "t": "2026-10-14T22:31:06.034023+05:30",
+      "offsetS": 3,
+      "intensity": 0,
+      "p95Ms": 501,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 3,
+      "phase": "steady"
+    },
+    {
+      "t": "2026-10-14T22:31:07.034023+05:30",
+      "offsetS": 4,
+      "intensity": 100,
+      "p95Ms": 500,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 2,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:31:08.034023+05:30",
+      "offsetS": 5,
+      "intensity": 100,
+      "p95Ms": 500,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 2,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:31:09.034023+05:30",
+      "offsetS": 6,
+      "intensity": 100,
+      "p95Ms": 501,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 2,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:31:10.034023+05:30",
+      "offsetS": 7,
+      "intensity": 100,
+      "p95Ms": 501,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 2,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:31:11.034023+05:30",
+      "offsetS": 8,
+      "intensity": 100,
+      "p95Ms": 500,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 2,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:31:12.034023+05:30",
+      "offsetS": 9,
+      "intensity": 100,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 3,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:31:13.034023+05:30",
+      "offsetS": 10,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 3,
+      "phase": "recover"
+    },
+    {
+      "t": "2026-10-14T22:31:14.034023+05:30",
+      "offsetS": 11,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 3,
+      "phase": "recover"
+    },
+    {
+      "t": "2026-10-14T22:31:15.034023+05:30",
+      "offsetS": 12,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 4,
+      "phase": "recover"
+    },
+    {
+      "t": "2026-10-14T22:31:16.034023+05:30",
+      "offsetS": 13,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 0,
+      "rps": 0,
+      "phase": "recover"
+    }
+  ],
+  "hypotheses": [
+    {
+      "name": "latency-landed",
+      "metric": "p95",
+      "operator": "\u003e",
+      "limit": "200ms",
+      "observed": "501.00ms",
+      "passed": true
+    },
+    {
+      "name": "recovers",
+      "metric": "recovery",
+      "operator": "\u003c=",
+      "limit": "5s",
+      "observed": "0.31s",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "observedVsInjected": [
+    {
+      "name": "charge-slows",
+      "injected": "hook armed",
+      "observed": "501 ms p95, 0.0% errors"
+    }
+  ],
+  "recovery_ns": 312712667
+}

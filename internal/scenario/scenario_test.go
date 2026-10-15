@@ -80,3 +80,29 @@ probes: [{ name: p, type: http, url: http://127.0.0.1/ }]
 		t.Fatal("expected error")
 	}
 }
+
+func TestLoadStart(t *testing.T) {
+	base := `
+apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata: { name: t }
+faults:
+  - { name: a, kind: http.latency, duration: 1s }
+probes:
+  - { name: p, type: http, url: http://127.0.0.1:1/ }
+load:
+  scenario: ./x
+`
+	s, err := Parse([]byte(base))
+	if err != nil || s.Load.Start != LoadStartInject {
+		t.Fatalf("default start: %v %+v", err, s.Load)
+	}
+	s, err = Parse([]byte(base + "  start: Baseline\n"))
+	if err != nil || s.Load.Start != LoadStartBaseline {
+		t.Fatalf("baseline: %v %+v", err, s.Load)
+	}
+	_, err = Parse([]byte(base + "  start: later\n"))
+	if err == nil || !strings.Contains(err.Error(), "load.start") {
+		t.Fatalf("bad start accepted: %v", err)
+	}
+}

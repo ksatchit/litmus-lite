@@ -1,0 +1,756 @@
+{
+  "name": "launchpad-http-latency-load",
+  "startedAt": "2026-10-14T22:33:54.240546+05:30",
+  "elapsed_ns": 20006293291,
+  "phases": [
+    {
+      "name": "steady",
+      "from": "2026-10-14T22:33:54.244616+05:30",
+      "to": "2026-10-14T22:33:57.245826+05:30",
+      "errorRate": 0,
+      "availability": 1,
+      "p50_ns": 709166,
+      "p95_ns": 1630250,
+      "p99_ns": 1630250,
+      "rps": 4.998133128968511,
+      "samples": 15,
+      "failed": 0
+    },
+    {
+      "name": "inject",
+      "from": "2026-10-14T22:33:57.245826+05:30",
+      "to": "2026-10-14T22:34:09.246325+05:30",
+      "errorRate": 0,
+      "availability": 1,
+      "p50_ns": 867279250,
+      "p95_ns": 895487084,
+      "p99_ns": 895487084,
+      "rps": 1.0833208187209586,
+      "samples": 13,
+      "failed": 0
+    },
+    {
+      "name": "recover",
+      "from": "2026-10-14T22:34:09.246325+05:30",
+      "to": "2026-10-14T22:34:14.246495+05:30",
+      "errorRate": 0,
+      "availability": 1,
+      "p50_ns": 686791,
+      "p95_ns": 1115500,
+      "p99_ns": 1137750,
+      "rps": 5.1999792000832,
+      "samples": 26,
+      "failed": 0
+    }
+  ],
+  "faultLog": [
+    {
+      "name": "slow-api",
+      "kind": "http.latency",
+      "start": "2026-10-14T22:33:57.245828+05:30",
+      "end": "2026-10-14T22:34:09.246325+05:30",
+      "tunables": {
+        "delay": "800ms",
+        "jitter": "100ms",
+        "listen": "127.0.0.1:18080",
+        "statusOverride": {
+          "code": 500,
+          "percent": 5
+        },
+        "upstream": "127.0.0.1:8080"
+      },
+      "intensity": 800,
+      "rollback": "ok"
+    }
+  ],
+  "probes": [
+    {
+      "at": "2026-10-14T22:33:54.240672+05:30",
+      "name": "healthz",
+      "ok": true,
+      "latency_ns": 3452458,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:54.445806+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 1630250,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:54.64545+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 633916,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:54.845682+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 633500,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:55.045692+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 515083,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:55.245716+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 1132417,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:55.445727+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 671125,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:55.645299+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 991250,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:55.845747+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 495500,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:56.045341+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 883958,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:56.245721+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 989375,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:56.445775+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 681958,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:56.64577+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 1120625,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:56.845781+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 610041,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:57.04559+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 709166,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:57.245788+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 825037333,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:58.070868+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 834023541,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:58.904924+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 898198083,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:33:59.803171+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 872798208,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:00.676003+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 891229334,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:01.567265+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 816876209,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:02.384172+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 854778083,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:03.238981+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 876761792,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:04.115773+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 826075625,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:04.941878+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 876713625,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:05.818624+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 895487084,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:06.714143+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 836955083,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:07.551129+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 867279250,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:08.418441+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 852648000,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:09.271118+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 273834,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:09.446112+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 1296459,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:09.646154+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 459750,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:09.845523+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 529000,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:10.045563+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 589791,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:10.246048+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 882166,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:10.445699+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 686791,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:10.64596+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 1038958,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:10.84619+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 754167,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:11.04618+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 900000,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:11.246197+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 1008958,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:11.446101+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 560583,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:11.646192+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 487500,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:11.846221+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 744709,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:12.046287+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 879750,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:12.245748+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 541834,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:12.446219+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 492458,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:12.646228+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 1115500,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:12.84625+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 656791,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:13.04623+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 445750,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:13.246275+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 731708,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:13.446201+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 495208,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:13.645574+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 965750,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:13.845814+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 1078209,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:14.046224+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 609416,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:34:14.246287+05:30",
+      "name": "list-launches",
+      "ok": true,
+      "latency_ns": 1137750,
+      "status": 200
+    }
+  ],
+  "timeseries": [
+    {
+      "t": "2026-10-14T22:33:54.240546+05:30",
+      "offsetS": 0,
+      "intensity": 0,
+      "p95Ms": 1,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 5,
+      "phase": "steady"
+    },
+    {
+      "t": "2026-10-14T22:33:55.240546+05:30",
+      "offsetS": 1,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 5,
+      "phase": "steady"
+    },
+    {
+      "t": "2026-10-14T22:33:56.240546+05:30",
+      "offsetS": 2,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 5,
+      "phase": "steady"
+    },
+    {
+      "t": "2026-10-14T22:33:57.240546+05:30",
+      "offsetS": 3,
+      "intensity": 0,
+      "p95Ms": 825,
+      "errorRate": 0.1667,
+      "availability": 0.8333,
+      "rps": 6,
+      "phase": "steady"
+    },
+    {
+      "t": "2026-10-14T22:33:58.240546+05:30",
+      "offsetS": 4,
+      "intensity": 800,
+      "p95Ms": 898,
+      "errorRate": 0.3333,
+      "availability": 0.6667000000000001,
+      "rps": 6,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:33:59.240546+05:30",
+      "offsetS": 5,
+      "intensity": 800,
+      "p95Ms": 872,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 6,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:34:00.240546+05:30",
+      "offsetS": 6,
+      "intensity": 800,
+      "p95Ms": 891,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 6,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:34:01.240546+05:30",
+      "offsetS": 7,
+      "intensity": 800,
+      "p95Ms": 816,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 6,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:34:02.240546+05:30",
+      "offsetS": 8,
+      "intensity": 800,
+      "p95Ms": 854,
+      "errorRate": 0.1111,
+      "availability": 0.8889,
+      "rps": 9,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:34:03.240546+05:30",
+      "offsetS": 9,
+      "intensity": 800,
+      "p95Ms": 826,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 9,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:34:04.240546+05:30",
+      "offsetS": 10,
+      "intensity": 800,
+      "p95Ms": 876,
+      "errorRate": 0.1667,
+      "availability": 0.8333,
+      "rps": 6,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:34:05.240546+05:30",
+      "offsetS": 11,
+      "intensity": 800,
+      "p95Ms": 895,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 6,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:34:06.240546+05:30",
+      "offsetS": 12,
+      "intensity": 800,
+      "p95Ms": 836,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 6,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:34:07.240546+05:30",
+      "offsetS": 13,
+      "intensity": 800,
+      "p95Ms": 867,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 7,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:34:08.240546+05:30",
+      "offsetS": 14,
+      "intensity": 800,
+      "p95Ms": 852,
+      "errorRate": 0.1667,
+      "availability": 0.8333,
+      "rps": 6,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:34:09.240546+05:30",
+      "offsetS": 15,
+      "intensity": 800,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 5,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:34:10.240546+05:30",
+      "offsetS": 16,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 5,
+      "phase": "recover"
+    },
+    {
+      "t": "2026-10-14T22:34:11.240546+05:30",
+      "offsetS": 17,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 5,
+      "phase": "recover"
+    },
+    {
+      "t": "2026-10-14T22:34:12.240546+05:30",
+      "offsetS": 18,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 5,
+      "phase": "recover"
+    },
+    {
+      "t": "2026-10-14T22:34:13.240546+05:30",
+      "offsetS": 19,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 5,
+      "phase": "recover"
+    },
+    {
+      "t": "2026-10-14T22:34:14.240546+05:30",
+      "offsetS": 20,
+      "intensity": 0,
+      "p95Ms": 1,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 1,
+      "phase": "recover"
+    }
+  ],
+  "hypotheses": [
+    {
+      "name": "errors-bounded",
+      "metric": "error_rate",
+      "operator": "\u003c",
+      "limit": "15%",
+      "observed": "0.00%",
+      "passed": true
+    },
+    {
+      "name": "recovers",
+      "metric": "recovery",
+      "operator": "\u003c=",
+      "limit": "5s",
+      "observed": "0.02s",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "load": {
+    "time_series": [
+      {
+        "offset_s": 0,
+        "rps": 6,
+        "error_rate": 0.1667
+      },
+      {
+        "offset_s": 1,
+        "rps": 6,
+        "error_rate": 0.3333
+      },
+      {
+        "offset_s": 2,
+        "rps": 6,
+        "error_rate": 0.0
+      },
+      {
+        "offset_s": 3,
+        "rps": 6,
+        "error_rate": 0.0
+      },
+      {
+        "offset_s": 4,
+        "rps": 6,
+        "error_rate": 0.0
+      },
+      {
+        "offset_s": 5,
+        "rps": 9,
+        "error_rate": 0.1111
+      },
+      {
+        "offset_s": 6,
+        "rps": 9,
+        "error_rate": 0.0
+      },
+      {
+        "offset_s": 7,
+        "rps": 6,
+        "error_rate": 0.1667
+      },
+      {
+        "offset_s": 8,
+        "rps": 6,
+        "error_rate": 0.0
+      },
+      {
+        "offset_s": 9,
+        "rps": 6,
+        "error_rate": 0.0
+      },
+      {
+        "offset_s": 10,
+        "rps": 7,
+        "error_rate": 0.0
+      },
+      {
+        "offset_s": 11,
+        "rps": 6,
+        "error_rate": 0.1667
+      }
+    ]
+  },
+  "observedVsInjected": [
+    {
+      "name": "slow-api intensity vs probe p95",
+      "injected": "800 ms",
+      "observed": "895 ms p95"
+    }
+  ],
+  "recovery_ns": 24792875
+}

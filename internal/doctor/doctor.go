@@ -3,14 +3,17 @@ package doctor
 import (
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ksatchit/litmus-lite/internal/compose"
 	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/ksatchit/litmus-lite/internal/stream"
 )
 
 type Check struct {
@@ -57,6 +60,28 @@ func Run(target, scenarioFile string) []Check {
 		}
 	}
 	return out
+}
+
+// Stream checks a streaming destination. A URL is a push endpoint: it must
+// answer an empty test batch with 2xx. Anything else is a listen address for
+// -stream-pull: the bind rule must allow it and the port must be free.
+func Stream(dest, token string, insecure bool) Check {
+	const name = "stream"
+	if strings.HasPrefix(dest, "http://") || strings.HasPrefix(dest, "https://") {
+		if err := stream.CheckPush(dest, token, insecure); err != nil {
+			return Check{name, false, "fail", err.Error()}
+		}
+		return Check{name, true, "ok", "push endpoint accepts a test batch"}
+	}
+	if err := stream.CheckBind(dest, token); err != nil {
+		return Check{name, false, "fail", err.Error()}
+	}
+	ln, err := net.Listen("tcp", dest)
+	if err != nil {
+		return Check{name, false, "fail", err.Error()}
+	}
+	ln.Close()
+	return Check{name, true, "ok", "can listen on " + dest}
 }
 
 func loadCheck(path string) Check {

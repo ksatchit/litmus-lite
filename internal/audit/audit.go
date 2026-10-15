@@ -12,6 +12,9 @@ type Line struct {
 	Command string    `json:"command"`
 	File    string    `json:"file,omitempty"`
 	Passed  *bool     `json:"passed,omitempty"`
+	// Stream names the sinks of a streamed run (file, pull, push:HOST). It never
+	// holds a URL path, query or token.
+	Stream string `json:"stream,omitempty"`
 }
 
 func Append(l Line) {

@@ -1,0 +1,824 @@
+{
+  "name": "cashier-charge",
+  "startedAt": "2026-10-14T22:30:47.976883+05:30",
+  "elapsed_ns": 15002914334,
+  "phases": [
+    {
+      "name": "steady",
+      "from": "2026-10-14T22:30:47.977615+05:30",
+      "to": "2026-10-14T22:30:50.978856+05:30",
+      "errorRate": 0,
+      "availability": 1,
+      "p50_ns": 341459,
+      "p95_ns": 456125,
+      "p99_ns": 456125,
+      "rps": 4.998083929546684,
+      "samples": 15,
+      "failed": 0
+    },
+    {
+      "name": "inject",
+      "from": "2026-10-14T22:30:50.978856+05:30",
+      "to": "2026-10-14T22:30:58.979771+05:30",
+      "errorRate": 1,
+      "availability": 0,
+      "p50_ns": 339709,
+      "p95_ns": 467625,
+      "p99_ns": 479625,
+      "rps": 4.999578056235313,
+      "samples": 40,
+      "failed": 40
+    },
+    {
+      "name": "recover",
+      "from": "2026-10-14T22:30:58.979771+05:30",
+      "to": "2026-10-14T22:31:02.980242+05:30",
+      "errorRate": 0,
+      "availability": 1,
+      "p50_ns": 434916,
+      "p95_ns": 871209,
+      "p99_ns": 871209,
+      "rps": 4.999560872320011,
+      "samples": 20,
+      "failed": 0
+    }
+  ],
+  "faultLog": [
+    {
+      "name": "charge-fails",
+      "kind": "failpoint",
+      "start": "2026-10-14T22:30:50.979432+05:30",
+      "end": "2026-10-14T22:30:58.979994+05:30",
+      "tunables": {
+        "name": "charge",
+        "token": "cashier-demo",
+        "url": "http://127.0.0.1:8091/_litmus/failpoint"
+      },
+      "intensity": 100,
+      "rollback": "ok"
+    }
+  ],
+  "probes": [
+    {
+      "at": "2026-10-14T22:30:47.976886+05:30",
+      "name": "healthz",
+      "ok": true,
+      "latency_ns": 703166,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:48.178729+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 488125,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:48.37869+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 329334,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:48.578713+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 304792,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:48.778709+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 321916,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:48.978218+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 328917,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:49.178641+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 378459,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:49.378356+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 364792,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:49.578558+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 415417,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:49.778718+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 226416,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:49.978737+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 341459,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:50.178771+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 329292,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:50.378756+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 390667,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:50.578541+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 350084,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:50.778759+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 456125,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:50.978824+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 341375,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:51.178795+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 339709,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:51.378152+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 328750,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:51.578721+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 362334,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:51.778677+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 301584,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:51.978829+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 388250,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:52.178831+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 330709,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:52.378181+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 291041,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:52.578854+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 410750,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:52.77885+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 315042,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:52.978417+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 330458,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:53.178884+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 406208,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:53.378872+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 263250,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:53.578874+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 366000,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:53.778891+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 343334,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:53.978118+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 319209,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:54.178913+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 393541,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:54.378906+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 285209,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:54.578911+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 309500,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:54.778679+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 430875,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:54.978849+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 479625,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:55.178931+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 322125,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:55.378603+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 371125,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:55.578942+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 313000,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:55.778927+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 467625,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:55.978963+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 389334,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:56.178571+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 397167,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:56.378955+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 391250,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:56.578982+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 348542,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:56.778133+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 329083,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:56.978966+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 398666,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:57.178486+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 340042,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:57.378969+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 258167,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:57.578826+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 266958,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:57.778987+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 363750,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:57.978148+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 301375,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:58.178983+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 311458,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:58.378576+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 344292,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:58.579018+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 518750,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:58.779023+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 276750,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:58.979015+05:30",
+      "name": "charge",
+      "ok": false,
+      "latency_ns": 306375,
+      "status": 503,
+      "error": "503 Service Unavailable"
+    },
+    {
+      "at": "2026-10-14T22:30:59.179046+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 507958,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:59.379056+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 303584,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:59.579029+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 315458,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:59.779079+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 402084,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:30:59.978099+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 340000,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:00.17906+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 322250,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:00.378988+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 492542,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:00.579092+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 495833,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:00.779085+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 851750,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:00.979113+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 429958,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:01.179098+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 456583,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:01.37914+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 464000,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:01.579117+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 434916,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:01.779137+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 871209,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:01.978189+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 479333,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:02.17914+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 408375,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:02.379137+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 306708,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:02.579165+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 898250,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:02.778335+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 465625,
+      "status": 200
+    },
+    {
+      "at": "2026-10-14T22:31:02.979169+05:30",
+      "name": "charge",
+      "ok": true,
+      "latency_ns": 385041,
+      "status": 200
+    }
+  ],
+  "timeseries": [
+    {
+      "t": "2026-10-14T22:30:47.976883+05:30",
+      "offsetS": 0,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 5,
+      "phase": "steady"
+    },
+    {
+      "t": "2026-10-14T22:30:48.976883+05:30",
+      "offsetS": 1,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 5,
+      "phase": "steady"
+    },
+    {
+      "t": "2026-10-14T22:30:49.976883+05:30",
+      "offsetS": 2,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 5,
+      "phase": "steady"
+    },
+    {
+      "t": "2026-10-14T22:30:50.976883+05:30",
+      "offsetS": 3,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0.8,
+      "availability": 0.19999999999999996,
+      "rps": 5,
+      "phase": "steady"
+    },
+    {
+      "t": "2026-10-14T22:30:51.976883+05:30",
+      "offsetS": 4,
+      "intensity": 100,
+      "p95Ms": 0,
+      "errorRate": 1,
+      "availability": 0,
+      "rps": 5,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:30:52.976883+05:30",
+      "offsetS": 5,
+      "intensity": 100,
+      "p95Ms": 0,
+      "errorRate": 1,
+      "availability": 0,
+      "rps": 5,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:30:53.976883+05:30",
+      "offsetS": 6,
+      "intensity": 100,
+      "p95Ms": 0,
+      "errorRate": 1,
+      "availability": 0,
+      "rps": 5,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:30:54.976883+05:30",
+      "offsetS": 7,
+      "intensity": 100,
+      "p95Ms": 0,
+      "errorRate": 1,
+      "availability": 0,
+      "rps": 5,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:30:55.976883+05:30",
+      "offsetS": 8,
+      "intensity": 100,
+      "p95Ms": 0,
+      "errorRate": 1,
+      "availability": 0,
+      "rps": 5,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:30:56.976883+05:30",
+      "offsetS": 9,
+      "intensity": 100,
+      "p95Ms": 0,
+      "errorRate": 1,
+      "availability": 0,
+      "rps": 5,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:30:57.976883+05:30",
+      "offsetS": 10,
+      "intensity": 100,
+      "p95Ms": 0,
+      "errorRate": 1,
+      "availability": 0,
+      "rps": 5,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:30:58.976883+05:30",
+      "offsetS": 11,
+      "intensity": 100,
+      "p95Ms": 0,
+      "errorRate": 0.2,
+      "availability": 0.8,
+      "rps": 5,
+      "phase": "inject"
+    },
+    {
+      "t": "2026-10-14T22:30:59.976883+05:30",
+      "offsetS": 12,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 5,
+      "phase": "recover"
+    },
+    {
+      "t": "2026-10-14T22:31:00.976883+05:30",
+      "offsetS": 13,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 5,
+      "phase": "recover"
+    },
+    {
+      "t": "2026-10-14T22:31:01.976883+05:30",
+      "offsetS": 14,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 5,
+      "phase": "recover"
+    },
+    {
+      "t": "2026-10-14T22:31:02.976883+05:30",
+      "offsetS": 15,
+      "intensity": 0,
+      "p95Ms": 0,
+      "errorRate": 0,
+      "availability": 1,
+      "rps": 1,
+      "phase": "recover"
+    }
+  ],
+  "hypotheses": [
+    {
+      "name": "hook-landed",
+      "metric": "error_rate",
+      "operator": "\u003e",
+      "limit": "50%",
+      "observed": "100.00%",
+      "passed": true
+    },
+    {
+      "name": "recovers",
+      "metric": "recovery",
+      "operator": "\u003c=",
+      "limit": "5s",
+      "observed": "0.20s",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "observedVsInjected": [
+    {
+      "name": "charge-fails",
+      "injected": "hook armed",
+      "observed": "0 ms p95, 100.0% errors"
+    }
+  ],
+  "recovery_ns": 199268833
+}
