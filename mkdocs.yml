@@ -6,6 +6,10 @@ repo_name: litmuschaos/litmus-lite
 edit_uri: edit/main/docs/
 copyright: Copyright &copy; The litmus-lite authors. Apache-2.0.
 
+extra:
+  # Where the header logo links to.
+  homepage: https://github.com/litmuschaos/litmus-lite
+
 # A file under docs/ that git ignores never reaches the site, even when the
 # site is built from a working copy.
 hooks:

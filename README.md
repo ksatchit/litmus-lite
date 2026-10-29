@@ -1,6 +1,14 @@
-<img src="docs/assets/pip.svg" alt="Pip, the litmus-lite mascot" width="140" align="right">
+<p align="center">
+  <img src="docs/assets/pip.svg" alt="Pip, the litmus-lite mascot" width="160">
+</p>
 
-# litmus-lite
+<h1 align="center">litmus-lite</h1>
+
+<p align="center">
+  <a href="https://litmuschaos.github.io/litmus-lite/"><b>Documentation</b></a> ·
+  <a href="https://litmuschaos.github.io/litmus-lite/getting-started/quick-start/">Quick start</a> ·
+  <a href="https://github.com/litmuschaos/litmus-lite/releases">Releases</a>
+</p>
 
 Chaos testing you ask for in [Cursor](https://cursor.com). Tell the agent what should break and what must stay true:
 
@@ -17,8 +25,6 @@ hypotheses:
 ```
 
 The agent is the quickest way in, not a requirement. The test is the file, in your repository, and it runs the same without the editor, in a terminal or in CI. Every MCP tool runs a command you can type yourself. Cursor is set up by `litmus-lite init`; any other MCP client works the same way (`litmus-lite mcp serve`), and `init -editor claude-code` is there for Claude Code.
-
-**Documentation: [litmuschaos.github.io/litmus-lite](https://litmuschaos.github.io/litmus-lite/)**
 
 Apache-2.0. Status: early. The CLI and the scenario format can still change before 1.0, and [what it does not do](#what-it-does-not-do) is listed below.
 
