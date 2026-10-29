@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 // Injector is one fault kind. Start must be reversible by Stop.

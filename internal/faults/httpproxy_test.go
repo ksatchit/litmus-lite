@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 func TestHTTPLatencyIsEarlyStarter(t *testing.T) {

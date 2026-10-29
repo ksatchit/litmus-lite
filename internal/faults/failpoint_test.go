@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ksatchit/litmus-lite/failpoint"
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/failpoint"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 func TestFailpointValidate(t *testing.T) {

@@ -13,10 +13,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/failpoint"
-	"github.com/ksatchit/litmus-lite/internal/faults"
-	"github.com/ksatchit/litmus-lite/internal/report"
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/failpoint"
+	"github.com/litmuschaos/litmus-lite/internal/faults"
+	"github.com/litmuschaos/litmus-lite/internal/report"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 func TestHTTPLatencyRun(t *testing.T) {

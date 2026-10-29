@@ -12,8 +12,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/ksatchit/litmus-lite/internal/report"
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/report"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 func startLive(t *testing.T, token string) (*LiveServer, string) {

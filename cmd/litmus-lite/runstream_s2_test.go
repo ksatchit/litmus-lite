@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/stream"
+	"github.com/litmuschaos/litmus-lite/internal/stream"
 )
 
 func clearStreamEnv(t *testing.T) {

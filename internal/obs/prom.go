@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/report"
+	"github.com/litmuschaos/litmus-lite/internal/report"
 )
 
 var DefaultQueries = []string{

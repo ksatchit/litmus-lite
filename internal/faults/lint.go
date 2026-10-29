@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 // ParamDeclarer is implemented by an injector that lists the params it reads,

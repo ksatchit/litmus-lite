@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 func TestLoopbackOK(t *testing.T) {

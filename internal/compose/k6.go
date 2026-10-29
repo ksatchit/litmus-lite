@@ -12,7 +12,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 func runK6(ctx context.Context, binOverride, baseDir string, load *scenario.LoadSpec, opts RunOptions) (Output, error) {

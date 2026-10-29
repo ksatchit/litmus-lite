@@ -12,8 +12,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ksatchit/litmus-lite/internal/engine"
-	"github.com/ksatchit/litmus-lite/internal/stream"
+	"github.com/litmuschaos/litmus-lite/internal/engine"
+	"github.com/litmuschaos/litmus-lite/internal/stream"
 )
 
 var _ engine.Emitter = (*stream.Recorder)(nil)

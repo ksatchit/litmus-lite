@@ -8,14 +8,14 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ksatchit/litmus-lite/internal/k8s"
-	"github.com/ksatchit/litmus-lite/internal/safety"
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/k8s"
+	"github.com/litmuschaos/litmus-lite/internal/safety"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 // releaseRepo is where the release archives live. `ci github` downloads from
 // it, so it has to be right the day the project moves.
-const releaseRepo = "ksatchit/litmus-lite"
+const releaseRepo = "litmuschaos/litmus-lite"
 
 // versionTag is what -version may be: a release tag. It goes into a shell
 // command in the generated workflow, so nothing else is accepted.

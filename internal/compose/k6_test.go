@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 func TestSeriesFromK6BucketsHTTP(t *testing.T) {

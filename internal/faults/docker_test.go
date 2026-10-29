@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 // The container name goes to the docker CLI as an argument, so it must not be

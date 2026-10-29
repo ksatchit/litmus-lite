@@ -16,7 +16,7 @@ Apache-2.0. Status: early. The CLI and the scenario format can still change befo
 
 ## Install
 
-Download the archive for your system from the [releases page](https://github.com/ksatchit/litmus-lite/releases) (Linux, macOS and Windows, amd64 and arm64), check it against `checksums.txt`, and put `litmus-lite` on your `PATH`:
+Download the archive for your system from the [releases page](https://github.com/litmuschaos/litmus-lite/releases) (Linux, macOS and Windows, amd64 and arm64), check it against `checksums.txt`, and put `litmus-lite` on your `PATH`:
 
 ```
 tar -xzf litmus-lite_*_darwin_arm64.tar.gz
@@ -35,7 +35,7 @@ Five minutes, one terminal tab for the sample service and one for litmus-lite. Y
 **1. Start the sample service** (tab 1):
 
 ```
-git clone https://github.com/ksatchit/litmus-lite && cd litmus-lite
+git clone https://github.com/litmuschaos/litmus-lite && cd litmus-lite
 LITMUS_LITE_FAILPOINT=charge,charge-slow LITMUS_LITE_FAILPOINT_TOKEN=cashier-demo go run ./examples/cashier
 ```
 

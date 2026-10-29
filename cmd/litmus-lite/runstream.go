@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/live"
-	"github.com/ksatchit/litmus-lite/internal/stream"
+	"github.com/litmuschaos/litmus-lite/internal/live"
+	"github.com/litmuschaos/litmus-lite/internal/stream"
 )
 
 // pushFlag collects repeated -stream-push URLs.

@@ -10,12 +10,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/compose"
-	"github.com/ksatchit/litmus-lite/internal/faults"
-	"github.com/ksatchit/litmus-lite/internal/obs"
-	"github.com/ksatchit/litmus-lite/internal/probe"
-	"github.com/ksatchit/litmus-lite/internal/report"
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/compose"
+	"github.com/litmuschaos/litmus-lite/internal/faults"
+	"github.com/litmuschaos/litmus-lite/internal/obs"
+	"github.com/litmuschaos/litmus-lite/internal/probe"
+	"github.com/litmuschaos/litmus-lite/internal/report"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 type Options struct {

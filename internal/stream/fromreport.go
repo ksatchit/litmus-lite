@@ -8,8 +8,8 @@ import (
 	"sort"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/diagnose"
-	"github.com/ksatchit/litmus-lite/internal/report"
+	"github.com/litmuschaos/litmus-lite/internal/diagnose"
+	"github.com/litmuschaos/litmus-lite/internal/report"
 )
 
 // FromReportOptions controls FromReport.

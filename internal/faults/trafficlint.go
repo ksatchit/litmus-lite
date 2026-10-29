@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 // TrafficCounter is implemented by a fault that acts on requests passing

@@ -14,8 +14,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/safety"
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/safety"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 type processPause struct{}

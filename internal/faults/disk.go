@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 const maxDiskFill = 256 << 20 // 256 MiB hard cap

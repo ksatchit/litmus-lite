@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/report"
+	"github.com/litmuschaos/litmus-lite/internal/report"
 )
 
 func TestRegress(t *testing.T) {

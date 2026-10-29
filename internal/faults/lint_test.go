@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 func fault(kind string, params map[string]any) scenario.Fault {

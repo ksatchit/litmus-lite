@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/report"
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/report"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 func freeAddr(t *testing.T) string {

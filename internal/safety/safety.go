@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 const DefaultMaxDuration = 60 * time.Second

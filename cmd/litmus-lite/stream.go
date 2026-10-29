@@ -13,8 +13,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/report"
-	"github.com/ksatchit/litmus-lite/internal/stream"
+	"github.com/litmuschaos/litmus-lite/internal/report"
+	"github.com/litmuschaos/litmus-lite/internal/stream"
 )
 
 // labelFlag collects repeated -label key=value flags.

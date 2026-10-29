@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ksatchit/litmus-lite/internal/report"
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/report"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 // How a generator binary was found. It is part of what a report records, so a

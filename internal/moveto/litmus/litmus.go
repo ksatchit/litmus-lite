@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"strings"
 
-	"github.com/ksatchit/litmus-lite/internal/moveto"
+	"github.com/litmuschaos/litmus-lite/internal/moveto"
 	"gopkg.in/yaml.v3"
 )
 

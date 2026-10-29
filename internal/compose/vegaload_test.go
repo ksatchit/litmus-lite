@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 // fakeGenerator is a shell script named vegaload, first on PATH. It behaves as

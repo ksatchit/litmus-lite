@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/probe"
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/probe"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 // SchemaVersion is the version of the report.json format this build writes.

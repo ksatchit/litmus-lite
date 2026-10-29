@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/probe"
-	"github.com/ksatchit/litmus-lite/internal/report"
+	"github.com/litmuschaos/litmus-lite/internal/probe"
+	"github.com/litmuschaos/litmus-lite/internal/report"
 )
 
 // sampleResult is a small finished run: 1s steady, 2s inject, 1s recover.

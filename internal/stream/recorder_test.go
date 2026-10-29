@@ -13,10 +13,10 @@ import (
 
 	"github.com/santhosh-tekuri/jsonschema/v6"
 
-	"github.com/ksatchit/litmus-lite/internal/compose"
-	"github.com/ksatchit/litmus-lite/internal/probe"
-	"github.com/ksatchit/litmus-lite/internal/report"
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/compose"
+	"github.com/litmuschaos/litmus-lite/internal/probe"
+	"github.com/litmuschaos/litmus-lite/internal/report"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 // memSink collects lines. block, when set, holds every Write until it is closed.

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/live"
+	"github.com/litmuschaos/litmus-lite/internal/live"
 )
 
 // fakeBridge stands in for a live-view service: it answers the health check and records

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ksatchit/litmus-lite/internal/hosts"
+	"github.com/litmuschaos/litmus-lite/internal/hosts"
 	"gopkg.in/yaml.v3"
 )
 

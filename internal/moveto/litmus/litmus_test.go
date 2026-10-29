@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ksatchit/litmus-lite/internal/moveto"
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/moveto"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 func TestIgniteRoundTripNoChaosEngine(t *testing.T) {

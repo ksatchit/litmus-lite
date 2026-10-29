@@ -3,7 +3,7 @@ package compose
 import (
 	"encoding/json"
 
-	"github.com/ksatchit/litmus-lite/internal/report"
+	"github.com/litmuschaos/litmus-lite/internal/report"
 )
 
 // VegaLoadResult is the subset of vegaload run -output json / -out we need.

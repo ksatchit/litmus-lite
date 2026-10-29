@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 const maxMemoryHog = 256 << 20 // 256 MiB

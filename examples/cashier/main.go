@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/failpoint"
+	"github.com/litmuschaos/litmus-lite/failpoint"
 )
 
 const slowDelay = 500 * time.Millisecond

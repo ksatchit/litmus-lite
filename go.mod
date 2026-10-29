@@ -1,4 +1,4 @@
-module github.com/ksatchit/litmus-lite
+module github.com/litmuschaos/litmus-lite
 
 go 1.22
 

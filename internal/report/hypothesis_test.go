@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/probe"
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/probe"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 func hyp(metric, op, value string) scenario.Hypothesis {

@@ -3,7 +3,7 @@ package compare
 import (
 	"fmt"
 
-	"github.com/ksatchit/litmus-lite/internal/report"
+	"github.com/litmuschaos/litmus-lite/internal/report"
 )
 
 type Row struct {

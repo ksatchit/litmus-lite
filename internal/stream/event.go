@@ -10,8 +10,8 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/probe"
-	"github.com/ksatchit/litmus-lite/internal/report"
+	"github.com/litmuschaos/litmus-lite/internal/probe"
+	"github.com/litmuschaos/litmus-lite/internal/report"
 )
 
 // Schema is the value of the schema field on every event.

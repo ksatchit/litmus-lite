@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
 )
 
 // failpointFault arms a named hook in another process for the inject window.

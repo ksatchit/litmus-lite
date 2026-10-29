@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/report"
+	"github.com/litmuschaos/litmus-lite/internal/report"
 )
 
 func TestTextDoesNotTreatEveryIntensityAsLatency(t *testing.T) {

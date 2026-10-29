@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ksatchit/litmus-lite/internal/compose"
-	"github.com/ksatchit/litmus-lite/internal/scenario"
-	"github.com/ksatchit/litmus-lite/internal/stream"
+	"github.com/litmuschaos/litmus-lite/internal/compose"
+	"github.com/litmuschaos/litmus-lite/internal/scenario"
+	"github.com/litmuschaos/litmus-lite/internal/stream"
 )
 
 type Check struct {
