@@ -6,12 +6,18 @@ hide:
 
 <div class="ll-hero" markdown>
 
+<div class="ll-hero__text" markdown>
+
 # litmus-lite
 
 <p class="ll-tagline">Chaos testing for developers. Ask for it in Cursor, or run it from a terminal. One binary, scenarios as files, and a verdict you can trust.</p>
 
 [Quick start](getting-started/quick-start.md){ .md-button .md-button--primary }
 [Install](getting-started/install.md){ .md-button }
+
+</div>
+
+![Pip, the litmus-lite mascot](assets/pip.svg){ .ll-hero__pip }
 
 </div>
 

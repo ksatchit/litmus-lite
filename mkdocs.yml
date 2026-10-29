@@ -19,25 +19,25 @@ plugins:
 
 theme:
   name: material
+  logo: assets/pip-head.svg
   icon:
-    logo: material/flask-outline
     repo: fontawesome/brands/github
-  favicon: assets/favicon.svg
+  favicon: assets/pip-head.svg
   font:
     text: Inter
     code: JetBrains Mono
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: deep purple
-      accent: amber
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-night
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: deep purple
-      accent: amber
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-sunny
         name: Switch to light mode

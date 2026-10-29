@@ -1,16 +1,45 @@
-:root {
-  --md-primary-fg-color: #5b44ba;
-  --md-primary-fg-color--light: #858cdd;
+/* LitmusChaos colours: purple #5a44ba, periwinkle #878ede. Pip adds the yellow. */
+:root,
+[data-md-color-primary="custom"] {
+  --md-primary-fg-color: #5a44ba;
+  --md-primary-fg-color--light: #878ede;
   --md-primary-fg-color--dark: #3f2d8f;
+  --md-primary-bg-color: #ffffff;
+  --md-primary-bg-color--light: #ffffffb3;
 }
 
-[data-md-color-scheme="slate"] {
+[data-md-color-accent="custom"] {
+  --md-accent-fg-color: #ffb547;
+  --md-accent-fg-color--transparent: #ffb5471a;
+}
+
+[data-md-color-scheme="slate"][data-md-color-primary="custom"] {
   --md-primary-fg-color: #4a3799;
+  --md-typeset-a-color: #a9aef0;
+}
+
+[data-md-color-scheme="default"] {
+  --md-typeset-a-color: #5a44ba;
+}
+
+/* The header logo is a full-colour drawing, so give it room. */
+.md-header__button.md-logo img {
+  height: 1.8rem;
 }
 
 /* The home page hero. */
 .ll-hero {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
   padding: 1.2rem 0 0.4rem;
+}
+.ll-hero__text {
+  flex: 1;
+}
+.ll-hero__pip {
+  flex: 0 0 13rem;
+  max-width: 13rem;
 }
 .ll-hero h1 {
   margin-bottom: 0.4rem;
@@ -21,6 +50,17 @@
   opacity: 0.85;
   margin-top: 0;
 }
+@media screen and (max-width: 44.9375em) {
+  .ll-hero {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+    gap: 0;
+  }
+  .ll-hero__pip {
+    flex-basis: auto;
+    max-width: 8rem;
+  }
+}
 
 /* A prompt to paste into an agent chat. */
 .ll-prompt {
@@ -30,4 +70,15 @@
   background: var(--md-code-bg-color);
   border-radius: 0.2rem;
   font-style: italic;
+}
+
+/* Pip, signing off a page. */
+.ll-pip-aside {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.ll-pip-aside img {
+  width: 5rem;
+  flex: 0 0 5rem;
 }

@@ -1,3 +1,5 @@
+<img src="docs/assets/pip.svg" alt="Pip, the litmus-lite mascot" width="140" align="right">
+
 # litmus-lite
 
 Chaos testing you ask for in [Cursor](https://cursor.com). Tell the agent what should break and what must stay true:
