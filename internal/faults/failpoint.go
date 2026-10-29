@@ -22,6 +22,8 @@ type failpointFault struct{}
 func (failpointFault) Name() string { return "failpoint" }
 func (failpointFault) OS() []string { return nil }
 
+func (failpointFault) ParamKeys() []string { return []string{"url", "name", "token"} }
+
 func (failpointFault) Validate(f scenario.Fault) error {
 	raw := strings.TrimSpace(scenario.StringParam(f.Params, "url"))
 	if raw == "" {

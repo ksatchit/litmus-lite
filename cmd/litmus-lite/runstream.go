@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"net/url"
@@ -37,7 +38,7 @@ type runStream struct {
 	samples    bool
 	labels     labelFlag
 
-	// The live view, on by default (see internal/live).
+	// The live view, dormant until a destination is configured (see internal/live).
 	liveOn  bool
 	noLive  bool
 	noOpen  bool
@@ -56,10 +57,10 @@ func (s *runStream) register(fs *flag.FlagSet) {
 	fs.StringVar(&s.runID, "run-id", "", "run id used on stream events (default: random)")
 	fs.BoolVar(&s.samples, "stream-samples", false, "also stream every probe sample (high volume)")
 	fs.Var(s.labels, "label", "label key=value on every stream event (repeatable)")
-	fs.BoolVar(&s.liveOn, "live", false, "show the run in the live view even when CI is set or another -stream destination is used")
-	fs.BoolVar(&s.noLive, "no-live", false, "do not stream to the live view (also LITMUS_LITE_LIVE=off)")
-	fs.BoolVar(&s.noOpen, "no-open", false, "stream to the live view but do not open the browser (also LITMUS_LITE_OPEN=off)")
-	fs.StringVar(&s.liveURL, "live-url", "", "live view service (default: LITMUS_LITE_LIVE_URL, or "+live.DefaultBase+")")
+	fs.BoolVar(&s.liveOn, "live", false, "also show the run in the live view when another -stream destination is used (needs a live-view destination)")
+	fs.BoolVar(&s.noLive, "no-live", false, "do not stream to the configured live view (also LITMUS_LITE_LIVE=off)")
+	fs.BoolVar(&s.noOpen, "no-open", false, "stream to the live view but do not open the browser (also LITMUS_LITE_OPEN=off; never opened in CI)")
+	fs.StringVar(&s.liveURL, "live-url", "", "live-view service to stream this run to, and the switch that turns the live view on (also LITMUS_LITE_LIVE_URL, or `litmus-lite live enable URL`)")
 }
 
 // streaming is what setup produced for one run.
@@ -106,11 +107,20 @@ func (s *runStream) setup() (*streaming, error) {
 		runID = stream.NewRunID()
 	}
 	explicit := file != "" || len(pushes) > 0 || pull != ""
-	// The live view is the default when the user asked for no destination of
-	// their own. -live adds it to the ones they asked for.
+	// A configured live view is the destination when the user asked for none
+	// of their own. -live adds it to the ones they asked for. With nothing
+	// configured there is no live view: nothing is sent, opened or written.
 	var lv *liveView
-	if live.Enabled(s.liveOn, s.noLive) && (!explicit || s.liveOn) {
-		lv = s.resolveLive()
+	if live.Enabled(s.noLive) && (!explicit || s.liveOn) {
+		base, err := live.Destination(s.liveURL)
+		switch {
+		case err != nil:
+			fmt.Fprintf(os.Stderr, "live view: off (%v)\n", err)
+		case base == nil && s.liveOn:
+			return nil, errNoLiveDestination
+		case base != nil:
+			lv = s.resolveLive(base)
+		}
 	}
 	if !explicit && lv == nil {
 		return nil, nil
@@ -194,6 +204,10 @@ func (s *runStream) setup() (*streaming, error) {
 	return st, nil
 }
 
+// errNoLiveDestination is what -live says when nothing says where the live
+// view is: it would otherwise do nothing and look like it worked.
+var errNoLiveDestination = errors.New("-live needs a live-view service: pass -live-url URL, set LITMUS_LITE_LIVE_URL, or run `litmus-lite live enable URL`")
+
 // liveView is the resolved live-view destination of one run.
 type liveView struct {
 	push  *url.URL
@@ -201,16 +215,11 @@ type liveView struct {
 	page  string
 }
 
-// resolveLive prepares the live view, or says on stderr why there is none. It
-// never fails the run: a machine with no service, or one that cannot keep its
-// identity file, just runs without the view.
-func (s *runStream) resolveLive() *liveView {
+// resolveLive prepares the live view at base, or says on stderr why there is
+// none. It never fails the run: a service that is down, or an identity file
+// that cannot be kept, just means a run without the view.
+func (s *runStream) resolveLive(base *url.URL) *liveView {
 	id, err := live.Load()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "live view: off (%v)\n", err)
-		return nil
-	}
-	base, err := id.BaseURL(s.liveURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "live view: off (%v)\n", err)
 		return nil

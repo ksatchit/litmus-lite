@@ -14,7 +14,7 @@ import (
 	"github.com/ksatchit/litmus-lite/internal/live"
 )
 
-// fakeBridge stands in for rt-bridge: it answers the health check and records
+// fakeBridge stands in for a live-view service: it answers the health check and records
 // what is pushed to a project.
 type fakeBridge struct {
 	srv *httptest.Server
@@ -59,7 +59,8 @@ func (b *fakeBridge) snapshot() (pushes int, auth, paths []string, body string) 
 }
 
 // liveEnv turns the live view on for one test (TestMain turns it off for the
-// package), points it at base, isolates its files, and captures the browser.
+// package) by pointing it at base through the environment, isolates its files,
+// and captures the browser.
 func liveEnv(t *testing.T, base string) (opened *[]string, home string) {
 	t.Helper()
 	clearStreamEnv(t)
@@ -81,6 +82,21 @@ func liveEnv(t *testing.T, base string) (opened *[]string, home string) {
 	return &urls, home
 }
 
+// runLiveCapturingStderr is runLive that also returns what the run wrote to
+// stderr.
+func runLiveCapturingStderr(t *testing.T, extra ...string) (code int, report, stderr string) {
+	t.Helper()
+	old := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+	done := make(chan string)
+	go func() { b, _ := io.ReadAll(r); done <- string(b) }()
+	code, report = runLive(t, extra...)
+	w.Close()
+	os.Stderr = old
+	return code, report, <-done
+}
+
 func runLive(t *testing.T, extra ...string) (code int, report string) {
 	t.Helper()
 	dir := t.TempDir()
@@ -90,7 +106,7 @@ func runLive(t *testing.T, extra ...string) (code int, report string) {
 	return run(append(args, scen)), report
 }
 
-func TestRunShowsTheLiveViewByDefault(t *testing.T) {
+func TestRunShowsTheLiveViewOnceADestinationIsConfigured(t *testing.T) {
 	bridge := newFakeBridge(t)
 	opened, home := liveEnv(t, bridge.srv.URL)
 
@@ -166,7 +182,6 @@ func TestLiveViewCanBeTurnedOff(t *testing.T) {
 	}{
 		"flag":               {args: []string{"-no-live"}},
 		"env":                {env: map[string]string{"LITMUS_LITE_LIVE": "off"}},
-		"ci":                 {env: map[string]string{"CI": "true"}},
 		"stream-file chosen": {args: []string{"-stream-file", "auto"}},
 	}
 	for name, c := range cases {
@@ -195,10 +210,9 @@ func TestLiveViewCanBeTurnedOff(t *testing.T) {
 	}
 }
 
-func TestLiveFlagAddsTheViewToAnotherDestinationAndBeatsCI(t *testing.T) {
+func TestLiveFlagAddsTheViewToAnotherDestination(t *testing.T) {
 	bridge := newFakeBridge(t)
 	opened, _ := liveEnv(t, bridge.srv.URL)
-	t.Setenv("CI", "true")
 	file := filepath.Join(t.TempDir(), "run.ndjson")
 	if code, _ := runLive(t, "-live", "-stream-file", file); code != 0 {
 		t.Fatal("exit")
@@ -209,9 +223,126 @@ func TestLiveFlagAddsTheViewToAnotherDestinationAndBeatsCI(t *testing.T) {
 	if b, err := os.ReadFile(file); err != nil || !strings.Contains(string(b), "run.finished") {
 		t.Fatalf("the file destination was dropped: %v", err)
 	}
-	// CI still never opens a browser: -live asks for the stream, not a window.
+	if len(*opened) != 1 {
+		t.Fatalf("opened %v", *opened)
+	}
+}
+
+// A destination in a CI job was put there on purpose, so CI streams; it only
+// never opens a window.
+func TestCIStreamsToAConfiguredViewButNeverOpensABrowser(t *testing.T) {
+	bridge := newFakeBridge(t)
+	opened, _ := liveEnv(t, bridge.srv.URL)
+	t.Setenv("CI", "true")
+	if code, _ := runLive(t); code != 0 {
+		t.Fatal("exit")
+	}
+	if pushes, _, _, _ := bridge.snapshot(); pushes == 0 {
+		t.Fatal("CI dropped a configured live view")
+	}
 	if len(*opened) != 0 {
 		t.Fatalf("opened %v in CI", *opened)
+	}
+}
+
+// The default: no flag, no variable, nothing kept. The run does what it did
+// before the live view existed: nothing is pushed, nothing is opened, no file
+// is made and stderr does not mention a live view.
+func TestRunIsDormantWithoutADestination(t *testing.T) {
+	bridge := newFakeBridge(t)
+	opened, _ := liveEnv(t, "")
+	t.Setenv("LITMUS_LITE_LIVE_URL", "")
+	code, report, stderr := runLiveCapturingStderr(t)
+	if code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if _, err := os.Stat(report); err != nil {
+		t.Fatal("no report")
+	}
+	if pushes, _, _, _ := bridge.snapshot(); pushes != 0 {
+		t.Fatal("pushed")
+	}
+	if len(*opened) != 0 {
+		t.Fatalf("opened %v", *opened)
+	}
+	if _, err := os.Stat(filepath.Join(os.Getenv("LITMUS_LITE_CONFIG_DIR"), "live.json")); err == nil {
+		t.Fatal("an identity was made with no destination configured")
+	}
+	if strings.Contains(strings.ToLower(stderr), "live view") {
+		t.Fatalf("stderr mentions a live view: %q", stderr)
+	}
+}
+
+func TestLiveFlagWithoutADestinationIsRefused(t *testing.T) {
+	opened, _ := liveEnv(t, "")
+	t.Setenv("LITMUS_LITE_LIVE_URL", "")
+	code, report := runLive(t, "-live")
+	if code != 2 {
+		t.Fatalf("exit %d, want 2", code)
+	}
+	if _, err := os.Stat(report); err == nil {
+		t.Fatal("the run went ahead")
+	}
+	if len(*opened) != 0 {
+		t.Fatal("opened")
+	}
+}
+
+func TestLiveURLFlagIsAloneEnoughToTurnItOn(t *testing.T) {
+	bridge := newFakeBridge(t)
+	opened, _ := liveEnv(t, "")
+	t.Setenv("LITMUS_LITE_LIVE_URL", "")
+	if code, _ := runLive(t, "-live-url", bridge.srv.URL); code != 0 {
+		t.Fatal("exit")
+	}
+	if pushes, _, _, _ := bridge.snapshot(); pushes == 0 || len(*opened) != 1 {
+		t.Fatalf("pushes %d, opened %v", pushes, *opened)
+	}
+}
+
+func TestLiveEnableTurnsItOnForLaterRunsAndDisableTurnsItOff(t *testing.T) {
+	bridge := newFakeBridge(t)
+	opened, _ := liveEnv(t, "")
+	t.Setenv("LITMUS_LITE_LIVE_URL", "")
+
+	if code, _ := runLive(t); code != 0 {
+		t.Fatal("exit")
+	}
+	if pushes, _, _, _ := bridge.snapshot(); pushes != 0 {
+		t.Fatal("pushed before anything was enabled")
+	}
+
+	if code := run([]string{"litmus-lite", "live", "enable", bridge.srv.URL}); code != 0 {
+		t.Fatalf("enable: exit %d", code)
+	}
+	if code, _ := runLive(t); code != 0 {
+		t.Fatal("exit")
+	}
+	if pushes, _, _, _ := bridge.snapshot(); pushes == 0 || len(*opened) != 1 {
+		t.Fatalf("after enable: pushes %d, opened %v", pushes, *opened)
+	}
+
+	if code := run([]string{"litmus-lite", "live", "disable"}); code != 0 {
+		t.Fatalf("disable: exit %d", code)
+	}
+	before, _, _, _ := bridge.snapshot()
+	if code, _ := runLive(t); code != 0 {
+		t.Fatal("exit")
+	}
+	if after, _, _, _ := bridge.snapshot(); after != before || len(*opened) != 1 {
+		t.Fatalf("still streaming after disable: %d -> %d, opened %v", before, after, *opened)
+	}
+
+	if code := run([]string{"litmus-lite", "live", "enable", "ftp://nope"}); code != 2 {
+		t.Fatalf("a bad address: exit %d", code)
+	}
+	// http:// to a remote host is refused at enable time, not kept and then
+	// refused on every run.
+	if code := run([]string{"litmus-lite", "live", "enable", "http://live.example.com"}); code != 2 {
+		t.Fatalf("a remote http address: exit %d", code)
+	}
+	if u, _ := live.Destination(""); u != nil {
+		t.Fatalf("a refused address was kept: %v", u)
 	}
 }
 
@@ -299,5 +430,23 @@ func TestLiveCommand(t *testing.T) {
 	}
 	if code := run([]string{"litmus-lite", "live", "bogus"}); code != 2 {
 		t.Fatalf("bogus argument: exit %d", code)
+	}
+	if code := run([]string{"litmus-lite", "live", "enable"}); code != 2 {
+		t.Fatalf("enable without an address: exit %d", code)
+	}
+}
+
+// With nothing configured `live` says so and prints no URL; it does not make
+// an identity just to have something to show.
+func TestLiveCommandWithNothingConfigured(t *testing.T) {
+	liveEnv(t, "")
+	t.Setenv("LITMUS_LITE_LIVE_URL", "")
+	for _, args := range [][]string{{}, {"-open"}, {"reset"}} {
+		if code := run(append([]string{"litmus-lite", "live"}, args...)); code != 1 {
+			t.Fatalf("live %v: exit %d, want 1", args, code)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(os.Getenv("LITMUS_LITE_CONFIG_DIR"), "live.json")); err == nil {
+		t.Fatal("an identity was made")
 	}
 }

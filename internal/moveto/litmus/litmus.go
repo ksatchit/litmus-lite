@@ -65,6 +65,8 @@ type Hypothesis struct {
 	Metric   string `json:"metric" yaml:"metric"`
 	Operator string `json:"operator" yaml:"operator"`
 	Value    string `json:"value" yaml:"value"`
+
+	AllowNoData bool `json:"allowNoData,omitempty" yaml:"allowNoData,omitempty"`
 }
 
 func FromIR(ex moveto.Experiment) Experiment {

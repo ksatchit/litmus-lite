@@ -23,6 +23,8 @@ type processPause struct{}
 func (processPause) Name() string { return "process.pause" }
 func (processPause) OS() []string { return []string{"linux", "darwin"} }
 
+func (processPause) ParamKeys() []string { return []string{"pid", "command"} }
+
 func (processPause) Validate(f scenario.Fault) error {
 	if scenario.IntParam(f.Params, "pid", 0) == 0 && scenario.StringParam(f.Params, "command") == "" {
 		return fmt.Errorf("process.pause needs params.pid or params.command")
@@ -53,6 +55,8 @@ type processKill struct{}
 
 func (processKill) Name() string { return "process.kill" }
 func (processKill) OS() []string { return []string{"linux", "darwin"} }
+
+func (processKill) ParamKeys() []string { return []string{"pid", "command", "sigkillAfter"} }
 
 func (processKill) Validate(f scenario.Fault) error {
 	if scenario.IntParam(f.Params, "pid", 0) == 0 && scenario.StringParam(f.Params, "command") == "" {

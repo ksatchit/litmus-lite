@@ -2,8 +2,10 @@ package mcp
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -23,6 +25,9 @@ func TestEvalSuite(t *testing.T) {
 		"v1/list_faults",
 		"v1/hub_import",
 		"v1/create_scenario",
+		"v1/refuses-agent-yes",
+		"v1/refuses-agent-allow-pid",
+		"v1/refuses-agent-allow-target",
 		"v1/tools-cli-equivalent",
 	} {
 		if !strings.Contains(report, "PASS "+name) {
@@ -221,6 +226,7 @@ func TestCLIArgsForwardLiveViewFlags(t *testing.T) {
 // line was merged into stdout and run_test stopped returning valid JSON.
 func TestToolStdoutStaysJSONAndNotesGoSeparately(t *testing.T) {
 	dir := t.TempDir()
+	needShell(t)
 	script := filepath.Join(dir, "fake-cli")
 	body := "#!/bin/sh\necho 'live view: http://127.0.0.1:7080/p/p-abc' 1>&2\necho '{\"passed\":true}'\n"
 	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
@@ -251,6 +257,7 @@ func TestToolStdoutStaysJSONAndNotesGoSeparately(t *testing.T) {
 
 func TestToolWithoutNotesHasOneContentItem(t *testing.T) {
 	dir := t.TempDir()
+	needShell(t)
 	script := filepath.Join(dir, "fake-cli")
 	if err := os.WriteFile(script, []byte("#!/bin/sh\necho '{\"ok\":true}'\n"), 0o755); err != nil {
 		t.Fatal(err)
@@ -265,6 +272,7 @@ func TestToolWithoutNotesHasOneContentItem(t *testing.T) {
 
 func TestFailedToolReportsBothStreams(t *testing.T) {
 	dir := t.TempDir()
+	needShell(t)
 	script := filepath.Join(dir, "fake-cli")
 	if err := os.WriteFile(script, []byte("#!/bin/sh\necho 'out' \necho 'bad scenario' 1>&2\nexit 2\n"), 0o755); err != nil {
 		t.Fatal(err)
@@ -281,6 +289,7 @@ func TestFailedToolReportsBothStreams(t *testing.T) {
 // together.
 func TestNotPassedRunIsAResultNotAnError(t *testing.T) {
 	dir := t.TempDir()
+	needShell(t)
 	script := filepath.Join(dir, "fake-cli")
 	body := "#!/bin/sh\necho '{\"passed\":false}'\necho 'live view: http://127.0.0.1:7080/p/p-abc' 1>&2\nexit 3\n"
 	if err := os.WriteFile(script, []byte(body), 0o755); err != nil {
@@ -298,5 +307,83 @@ func TestNotPassedRunIsAResultNotAnError(t *testing.T) {
 	if len(items) != 2 || json.Unmarshal([]byte(items[0]["text"]), &v) != nil || v["passed"] != false ||
 		!strings.HasPrefix(items[1]["text"], "live view:") {
 		t.Fatalf("content %v", items)
+	}
+}
+
+// needShell skips a test whose fake CLI is a shell script.
+func needShell(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("the fake CLI is a shell script")
+	}
+}
+
+// A value in a positional place never becomes a flag. Without "--", a file
+// named "-stream-insecure" would be read by the CLI as that flag, and a tool
+// call would reach flags its schema does not declare.
+func TestPositionalValuesComeAfterDoubleDash(t *testing.T) {
+	cases := map[string]map[string]any{
+		"run_test":          {"file": "-stream-insecure"},
+		"validate_scenario": {"file": "-stream-insecure"},
+		"diagnose_failure":  {"file": "-stream-insecure"},
+		"hub_import":        {"id": "-stream-insecure"},
+		"compare_reports":   {"baseline": "-stream-insecure", "candidate": "-live"},
+	}
+	for name, args := range cases {
+		argv, err := cliArgs(name, args)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		dd := -1
+		for i, a := range argv {
+			if a == "--" {
+				dd = i
+				break
+			}
+		}
+		if dd < 0 {
+			t.Errorf("%s: no -- in %v", name, argv)
+			continue
+		}
+		for _, a := range argv[:dd] {
+			if strings.HasPrefix(a, "-stream-insecure") || a == "-live" {
+				t.Errorf("%s: the caller's value %q is before --: %v", name, a, argv)
+			}
+		}
+	}
+}
+
+// get_results is the one tool without a CLI command behind it, so it must not
+// be a way to read other files.
+func TestGetResultsReturnsReportsOnly(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	good := write("report.json", `{"name":"x","passed":true,"phases":[],"probes":[]}`)
+	out, err := callTool("get_results", map[string]any{"file": good})
+	if err != nil || !strings.Contains(out, `"passed":true`) {
+		t.Fatalf("a report: %q %v", out, err)
+	}
+
+	for name, body := range map[string]string{
+		"key.pem":      "-----BEGIN PRIVATE KEY-----\nSECRET-KEY-MATERIAL\n",
+		"package.json": `{"name":"app","version":"1.0.0","secret":"SECRET-KEY-MATERIAL"}`,
+		"cred.json":    `{"name":"x","passed":"SECRET-KEY-MATERIAL"}`,
+	} {
+		out, err := callTool("get_results", map[string]any{"file": write(name, body)})
+		if err == nil {
+			t.Errorf("%s was returned: %q", name, out)
+		}
+		if strings.Contains(out+fmt.Sprint(err), "SECRET-KEY-MATERIAL") {
+			t.Errorf("%s: the refusal quotes the file", name)
+		}
+	}
+	if _, err := callTool("get_results", map[string]any{"file": dir}); err == nil {
+		t.Error("a directory was read")
 	}
 }

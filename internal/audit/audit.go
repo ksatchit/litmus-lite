@@ -26,8 +26,8 @@ func Append(l Line) {
 		return
 	}
 	dir := filepath.Join(home, ".litmus-lite")
-	_ = os.MkdirAll(dir, 0o755)
-	f, err := os.OpenFile(filepath.Join(dir, "audit.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	_ = os.MkdirAll(dir, 0o755) // shared with the hub cache (hosts.Dir)
+	f, err := os.OpenFile(filepath.Join(dir, "audit.log"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return
 	}

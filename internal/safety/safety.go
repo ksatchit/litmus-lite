@@ -32,7 +32,7 @@ func Check(s *scenario.Scenario, opt Options) error {
 			return fmt.Errorf("fault %s (%s) requires -yes", f.Name, f.Kind)
 		}
 		if host := scenario.StringParam(f.Params, "upstream"); host != "" {
-			if err := hostAllowed(host, opt.AllowTargets); err != nil {
+			if err := hostAllowed(host, opt); err != nil {
 				return err
 			}
 		}
@@ -45,7 +45,7 @@ func Check(s *scenario.Scenario, opt Options) error {
 		// enforced at accept time. See docs/ROADMAP.md. Revisit this check when
 		// either is built.
 		if listen := scenario.StringParam(f.Params, "listen"); listen != "" {
-			if err := hostAllowed(listen, opt.AllowTargets); err != nil {
+			if err := hostAllowed(listen, opt); err != nil {
 				return err
 			}
 		}
@@ -54,7 +54,7 @@ func Check(s *scenario.Scenario, opt Options) error {
 		}
 		if f.Kind == "failpoint" {
 			if raw := scenario.StringParam(f.Params, "url"); raw != "" {
-				if err := hostAllowed(raw, opt.AllowTargets); err != nil {
+				if err := hostAllowed(raw, opt); err != nil {
 					return fmt.Errorf("fault %s: %w", f.Name, err)
 				}
 			}
@@ -65,13 +65,13 @@ func Check(s *scenario.Scenario, opt Options) error {
 	}
 	for _, p := range append(append([]scenario.Probe{}, s.SteadyState...), s.Probes...) {
 		if p.URL != "" {
-			if err := hostAllowed(p.URL, opt.AllowTargets); err != nil {
+			if err := hostAllowed(p.URL, opt); err != nil {
 				return err
 			}
 		}
 	}
 	if s.Target.BaseURL != "" {
-		if err := hostAllowed(s.Target.BaseURL, opt.AllowTargets); err != nil {
+		if err := hostAllowed(s.Target.BaseURL, opt); err != nil {
 			return err
 		}
 	}
@@ -160,7 +160,12 @@ func needsYes(kind string) bool {
 	}
 }
 
-func hostAllowed(raw string, allow []string) error {
+// hostAllowed says whether the scenario may touch raw (a URL, host or
+// host:port). Loopback always. Any other host must be named in -allow-target.
+// A Kubernetes service host (.svc) must be named too and the run must have -yes:
+// it is a service inside a cluster, not a machine the person is sitting at.
+func hostAllowed(raw string, opt Options) error {
+	allow := opt.AllowTargets
 	host := raw
 	if strings.Contains(raw, "://") {
 		u, err := url.Parse(raw)
@@ -179,13 +184,20 @@ func hostAllowed(raw string, allow []string) error {
 		return nil
 	}
 	lc := strings.ToLower(host)
-	if strings.HasSuffix(lc, ".svc") || strings.HasSuffix(lc, ".svc.cluster.local") {
-		return fmt.Errorf("refusing Kubernetes service host %q without -allow-target and -yes", host)
-	}
+	named := false
 	for _, a := range allow {
 		if strings.EqualFold(a, host) || strings.EqualFold(a, raw) {
+			named = true
+		}
+	}
+	if strings.HasSuffix(lc, ".svc") || strings.HasSuffix(lc, ".svc.cluster.local") {
+		if named && opt.Yes {
 			return nil
 		}
+		return fmt.Errorf("refusing Kubernetes service host %q: it needs both -allow-target %s and -yes", host, host)
+	}
+	if named {
+		return nil
 	}
 	return fmt.Errorf("host %q is not loopback; pass -allow-target %s", host, host)
 }

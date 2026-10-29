@@ -1,6 +1,7 @@
 package doctor
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -37,10 +38,10 @@ func Run(target, scenarioFile string) []Check {
 	}
 	if scenarioFile != "" {
 		out = append(out, loadCheck(scenarioFile))
-	} else if _, err := exec.LookPath("vegaload"); err != nil {
-		out = append(out, Check{"vegaload", true, "warn", "vegaload not on PATH; load: blocks will run chaos only"})
 	} else {
-		out = append(out, Check{"vegaload", true, "ok", "vegaload found"})
+		// No scenario to ask: look at the default generator, which is what a
+		// load: block without a tool runs.
+		out = append(out, generatorCheck(".", &scenario.LoadSpec{Tool: "vegaload", Scenario: "x"}))
 	}
 	cwd, _ := os.Getwd()
 	mcp := filepath.Join(cwd, ".cursor", "mcp.json")
@@ -92,14 +93,27 @@ func loadCheck(path string) Check {
 	if sc.Load == nil {
 		return Check{"load", true, "ok", "no load block"}
 	}
-	name, message, found := compose.BinaryStatus(filepath.Dir(path), sc.Load)
+	return generatorCheck(filepath.Dir(path), sc.Load)
+}
+
+// generatorCheck says which copy of a load generator a run would use, its
+// version and where it came from, and warns when it is missing, cannot stream
+// live load points, or another copy looks better. The check never runs a load.
+func generatorCheck(baseDir string, load *scenario.LoadSpec) Check {
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	st := compose.Inspect(ctx, baseDir, load, "")
+	name := st.Tool
 	if name == "" {
 		name = "load"
 	}
-	if !found {
-		return Check{name, true, "warn", message}
+	if !st.Found {
+		return Check{name, true, "warn", fmt.Sprintf("%s not found; load: will run chaos only", st.Bin)}
 	}
-	return Check{name, true, "ok", message}
+	if st.Degraded() {
+		return Check{name, true, "warn", st.Message()}
+	}
+	return Check{name, true, "ok", st.Message()}
 }
 
 func JSON(checks []Check) []byte {

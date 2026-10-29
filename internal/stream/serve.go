@@ -184,8 +184,12 @@ func (s *DirServer) scan() map[string]fileState {
 			continue
 		}
 		path := filepath.Join(s.Dir, e.Name())
-		info, err := e.Info()
-		if err != nil {
+		// Stat the file itself. The entry's own Info() is what the directory
+		// listing holds, and on Windows that is not updated while the writer
+		// still has the file open: a run in progress would show size 0 and
+		// never be read.
+		info, err := os.Stat(path)
+		if err != nil || !info.Mode().IsRegular() {
 			continue
 		}
 		live[path] = true

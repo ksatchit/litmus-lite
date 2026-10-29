@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"syscall"
 
@@ -19,10 +21,10 @@ import (
 	"github.com/ksatchit/litmus-lite/internal/faults"
 	"github.com/ksatchit/litmus-lite/internal/hosts"
 	"github.com/ksatchit/litmus-lite/internal/hub"
-	"github.com/ksatchit/litmus-lite/internal/k8s"
 	"github.com/ksatchit/litmus-lite/internal/mcp"
 	"github.com/ksatchit/litmus-lite/internal/moveto"
 	litmusadapter "github.com/ksatchit/litmus-lite/internal/moveto/litmus"
+	"github.com/ksatchit/litmus-lite/internal/probe"
 	"github.com/ksatchit/litmus-lite/internal/report"
 	"github.com/ksatchit/litmus-lite/internal/safety"
 	"github.com/ksatchit/litmus-lite/internal/scenario"
@@ -89,21 +91,21 @@ func usage() {
 
 Commands:
   new -beside DIR        write a co-located *.chaos.yaml
-  validate FILE          schema + safety
-  run FILE               execute a scenario (-allow-target, -allow-pid, -yes, -stream-file|-push|-pull, -run-id, -label)
-                         shows the run in your browser by default (-no-live, -no-open, -live-url; see "live")
+  validate FILE          schema + safety (-strict: unknown keys are errors)
+  run FILE               execute a scenario (-allow-target, -allow-pid, -yes, -strict, -stream-file|-push|-pull, -run-id, -label)
+                         optional live view in your browser once a service is configured (-live-url, see "live")
   diagnose FILE.json     explain a report
   hub list|search|show|import
-  init                   register MCP + Cursor rules
+  init                   register MCP + Cursor rules (-env KEY=VALUE, repeatable, for the MCP server)
   doctor                 check CLI / hosts / target (-file FILE, -stream URL|ADDR)
   compare BASE CAND      phase regression
   mcp serve | mcp eval
   move-to                emit IR or Litmus 4.0 experiment YAML (-adapter ir|litmus)
-  ci github              write a GitHub Actions workflow
-  export job FILE        Kubernetes Job YAML (no CRD)
+  ci github              write a GitHub Actions workflow that installs a release and validates *.chaos.yaml (-version TAG, -force)
+  export job FILE        ConfigMap + Kubernetes Job for a scenario (-image IMAGE is required; -allow-target, -yes). Experimental
   stream                 from-report | replay | validate | receive (run event streams)
   serve                  read-only data source over a directory of run files (-dir, -listen)
-  live                   your live-view project: print or open its URL (-open), or "live reset"
+  live                   optional live view of a run: "live enable URL" | "live disable" | print or open the page (-open) | "live reset"
 
 `, version)
 }
@@ -141,6 +143,7 @@ func cmdValidate(args []string) int {
 	allow := fs.String("allow-target", "", "comma-separated extra hosts")
 	allowPID := fs.String("allow-pid", "", "comma-separated PIDs process faults may signal")
 	yes := fs.Bool("yes", false, "allow long/destructive runs")
+	strict := fs.Bool("strict", false, strictUsage)
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -173,12 +176,55 @@ func cmdValidate(args []string) int {
 		printErr(*out, err)
 		return 1
 	}
+	warns := lintScenario(sc)
+	if err := strictError(*strict, warns); err != nil {
+		printErr(*out, err)
+		return 1
+	}
+	cmds := commandsToRun(sc)
 	if *out == "json" {
-		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"valid": true, "name": sc.Metadata.Name})
+		doc := map[string]any{"valid": true, "name": sc.Metadata.Name}
+		if len(warns) > 0 {
+			doc["warnings"] = warns
+		}
+		if len(cmds) > 0 {
+			doc["runsCommands"] = cmds
+		}
+		_ = json.NewEncoder(os.Stdout).Encode(doc)
 	} else {
+		for _, w := range warns {
+			fmt.Fprintln(os.Stderr, "warning: "+w)
+		}
+		printCommandNotice(os.Stderr, cmds)
 		fmt.Println("valid")
 	}
 	return 0
+}
+
+const strictUsage = "treat warnings (a key or param the scenario format does not read) as errors"
+
+// lintScenario lists what is wrong with a scenario that does not stop it from
+// running: keys nothing reads, which would otherwise do nothing and say
+// nothing.
+func lintScenario(sc *scenario.Scenario) []string {
+	out := append([]string(nil), sc.Warnings...)
+	out = append(out, faults.Lint(sc)...)
+	if len(sc.Hypotheses) == 0 {
+		out = append(out, "no hypotheses: this run cannot fail, whatever the probes see, so a green result says nothing. "+
+			"Add at least one, for example error_rate or recovery (see docs/hypotheses.md)")
+	}
+	for _, p := range append(append([]scenario.Probe(nil), sc.SteadyState...), sc.Probes...) {
+		out = append(out, probe.Lint(p)...)
+	}
+	return out
+}
+
+// strictError is the error -strict makes of the warnings, or nil.
+func strictError(strict bool, warns []string) error {
+	if !strict || len(warns) == 0 {
+		return nil
+	}
+	return fmt.Errorf("-strict: %d warning(s): %s", len(warns), strings.Join(warns, "; "))
 }
 
 // htmlPathFor derives the HTML report path from the JSON report path by
@@ -200,6 +246,7 @@ func cmdRun(args []string) int {
 	allow := fs.String("allow-target", "", "comma-separated extra hosts")
 	allowPID := fs.String("allow-pid", "", "comma-separated PIDs process faults may signal")
 	yes := fs.Bool("yes", false, "allow long/destructive runs")
+	strict := fs.Bool("strict", false, strictUsage)
 	var sflags runStream
 	sflags.register(fs)
 	if err := fs.Parse(args); err != nil {
@@ -228,28 +275,44 @@ func cmdRun(args []string) int {
 		printErr(*outFmt, err)
 		return 2
 	}
+	startWarns := lintScenario(sc)
+	if err := strictError(*strict, startWarns); err != nil {
+		printErr(*outFmt, err)
+		return 1
+	}
+	// Shown now, not only after a long run, and kept in the report.
+	shown := map[string]bool{}
+	for _, w := range startWarns {
+		fmt.Fprintln(os.Stderr, "warning: "+w)
+		shown[w] = true
+	}
+	printCommandNotice(os.Stderr, commandsToRun(sc))
 	ctx := safety.WithAllowPIDs(context.Background(), opt.AllowPIDs)
-	eopt := engine.Options{ScenarioDir: filepath.Dir(file)}
+	eopt := engine.Options{ScenarioDir: filepath.Dir(file), Warnings: startWarns}
 	st, err := sflags.setup()
 	if err != nil {
 		printErr(*outFmt, err)
 		return 2
 	}
 	auditLine := audit.Line{Command: "run", File: file}
+	// Ctrl-C and SIGTERM always stop the run the same way: the engine rolls
+	// every fault back (resumes a paused process, unpauses a container, removes
+	// a fill file) and no report is written. Without this the default action of
+	// the signal ends the process at once and leaves the fault in place, which
+	// for a chaos tool is the worst way to stop. A second signal, while the
+	// rollback is running, is not caught, so it ends the process.
+	var stop context.CancelFunc
+	ctx, stop = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	go func() { <-ctx.Done(); stop() }()
 	if st != nil {
 		auditLine.Stream = st.audit
-		// Only when streaming: stop on Ctrl-C or SIGTERM, roll faults back and
-		// end the stream with run.failed. Without a stream flag, signals are
-		// handled as before.
-		var stop context.CancelFunc
-		ctx, stop = signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-		defer stop()
 		eopt.Emitter = st.rec
 		eopt.RunID = st.rec.RunID()
 		defer func() { st.close(ctx) }()
 	}
 	res, err := engine.Run(ctx, sc, eopt)
-	if st != nil && ctx.Err() != nil {
+	if ctx.Err() != nil {
 		fmt.Fprintln(os.Stderr, "interrupted: faults rolled back, no report written")
 		audit.Append(auditLine)
 		return 130
@@ -276,8 +339,14 @@ func cmdRun(args []string) int {
 		fmt.Println(string(b))
 	} else {
 		fmt.Printf("%s passed=%v hypotheses=%d report=%s html=%s\n", res.Name, res.Passed, len(res.Hypotheses), *outPath, htmlPath)
-		if len(res.Warnings) > 0 {
-			fmt.Println(strings.Join(res.Warnings, "\n"))
+		var rest []string
+		for _, w := range res.Warnings {
+			if !shown[w] {
+				rest = append(rest, w)
+			}
+		}
+		if len(rest) > 0 {
+			fmt.Println(strings.Join(rest, "\n"))
 		}
 	}
 	if !res.Passed {
@@ -385,21 +454,18 @@ func cmdHub(args []string) int {
 func cmdInit(args []string) int {
 	fs := flag.NewFlagSet("init", flag.ContinueOnError)
 	editor := fs.String("editor", "cursor", "cursor|claude-code")
-	liveDir := fs.String("live-dir", "", "keep the MCP server's live view project in DIR (set LITMUS_LITE_CONFIG_DIR for it), e.g. to share one project with vegaload's MCP server")
+	var envs pushFlag
+	fs.Var(&envs, "env", "set KEY=VALUE in the MCP server's environment (repeatable; KEY= removes it). For example LITMUS_LITE_LIVE_URL=https://live.example, or LITMUS_LITE_CONFIG_DIR=DIR to keep litmus-lite's config elsewhere")
 	_ = outputFlag(fs)
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	var env map[string]string
-	if *liveDir != "" {
-		abs, err := absDir(*liveDir)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return 1
-		}
-		env = map[string]string{"LITMUS_LITE_CONFIG_DIR": abs}
+	env, err := parseInitEnv(envs)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "init:", err)
+		return 2
 	}
-	bin, err := os.Executable()
+	bin, err := executablePath()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -414,6 +480,62 @@ func cmdInit(args []string) int {
 	_ = hosts.WriteProjectMCP(cwd, bin, env)
 	fmt.Println("initialized litmus-lite MCP in", cwd)
 	return 0
+}
+
+// executable is os.Executable; tests replace it.
+var executable = os.Executable
+
+// executablePath is the path of this binary as written into the MCP entry. The
+// system may hand it back as it was typed (/tmp/x/proj/../litmus-lite), so it
+// is cleaned. Links are not resolved: a package manager's stable link must
+// stay what the editor runs.
+func executablePath() (string, error) {
+	bin, err := executable()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Clean(bin), nil
+}
+
+var envName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// secretName matches variable names that hold a credential.
+var secretName = regexp.MustCompile(`(?i)(token|secret|password|passwd|credential|api_?key)`)
+
+// parseInitEnv checks the -env values of `init`. The MCP file is written into
+// the project, where it is usually committed, so a credential must never go
+// there: the name decides (LITMUS_LITE_STREAM_TOKEN and the like), and so does
+// a URL with a user name or password in it. The values of the two path
+// variables are made absolute, because an editor starts the server from a
+// directory of its own choosing. An empty value means "remove".
+func parseInitEnv(pairs []string) (map[string]string, error) {
+	if len(pairs) == 0 {
+		return nil, nil
+	}
+	env := map[string]string{}
+	for _, kv := range pairs {
+		k, v, ok := strings.Cut(kv, "=")
+		if !ok || !envName.MatchString(k) {
+			return nil, fmt.Errorf("-env %q: want KEY=VALUE, with KEY a variable name", kv)
+		}
+		if secretName.MatchString(k) {
+			return nil, fmt.Errorf("-env %s: the MCP file is written into the project and is often committed, so it must not hold a credential. Set %s in the environment of the editor instead", k, k)
+		}
+		if strings.Contains(v, "://") {
+			if u, err := url.Parse(v); err == nil && u.User != nil {
+				return nil, fmt.Errorf("-env %s: the value has credentials in it; the MCP file must not hold them", k)
+			}
+		}
+		if v != "" && (k == "LITMUS_LITE_CONFIG_DIR" || k == "LITMUS_LITE_HOME") {
+			abs, err := absDir(v)
+			if err != nil {
+				return nil, err
+			}
+			v = abs
+		}
+		env[k] = v
+	}
+	return env, nil
 }
 
 // absDir makes a directory argument absolute, expanding a leading ~ the shell
@@ -518,14 +640,14 @@ func cmdMCP(args []string) int {
 
 func cmdMoveTo(args []string) int {
 	fs := flag.NewFlagSet("move-to", flag.ContinueOnError)
-	adapter := fs.String("adapter", "ir", "ir|litmus|harness")
+	adapter := fs.String("adapter", "ir", "ir|litmus")
 	out := outputFlag(fs)
 	outPath := fs.String("out", "", "optional file to write (stdout always)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if fs.NArg() < 1 {
-		fmt.Fprintln(os.Stderr, "move-to [-adapter ir|litmus|harness] [-output text|json] [-out FILE] FILE")
+		fmt.Fprintln(os.Stderr, "move-to [-adapter ir|litmus] [-output text|json] [-out FILE] FILE")
 		return 2
 	}
 	sc, err := scenario.Load(fs.Arg(0))
@@ -545,14 +667,8 @@ func cmdMoveTo(args []string) int {
 		} else {
 			body = litmusadapter.YAML(doc)
 		}
-	case "harness":
-		fmt.Print(string(moveto.JSON(ex)))
-		if err := moveto.Push("harness", ex); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-		}
-		return 1
 	default:
-		printErr(*out, fmt.Errorf("unknown adapter %q", *adapter))
+		printErr(*out, fmt.Errorf("unknown adapter %q (want ir or litmus)", *adapter))
 		return 1
 	}
 	fmt.Print(string(body))
@@ -562,49 +678,6 @@ func cmdMoveTo(args []string) int {
 			return 1
 		}
 	}
-	return 0
-}
-
-func cmdCI(args []string) int {
-	if len(args) < 1 || args[0] != "github" {
-		fmt.Fprintln(os.Stderr, "ci github")
-		return 2
-	}
-	dir := filepath.Join(".github", "workflows")
-	_ = os.MkdirAll(dir, 0o755)
-	body := `name: litmus-lite
-on: [push, pull_request]
-jobs:
-  chaos:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.22"
-      - run: go build -o litmus-lite ./cmd/litmus-lite
-      - run: ./litmus-lite validate examples/launchpad/ignite.chaos.yaml
-`
-	path := filepath.Join(dir, "litmus-lite.yml")
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-	fmt.Println(path)
-	return 0
-}
-
-func cmdExport(args []string) int {
-	if len(args) < 2 || args[0] != "job" {
-		fmt.Fprintln(os.Stderr, "export job FILE")
-		return 2
-	}
-	sc, err := scenario.Load(args[1])
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-	fmt.Print(k8s.JobYAML(sc))
 	return 0
 }
 

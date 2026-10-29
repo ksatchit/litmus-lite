@@ -63,9 +63,21 @@ func TestLiveServerStreamsAsTheRunHappens(t *testing.T) {
 	rec.Phase("steady")
 
 	// A client that connects mid-run reads the past, then the future.
-	resp, err = http.Get(base + "/v1/events")
-	if err != nil || resp.StatusCode != 200 {
-		t.Fatalf("%v %v", err, resp)
+	// The recorder hands events to the server on its own goroutine, so the
+	// run is there a moment after Started returns, not at that instant.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		resp, err = http.Get(base + "/v1/events")
+		if err == nil && resp.StatusCode == 200 {
+			break
+		}
+		if err == nil {
+			resp.Body.Close()
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("the run never became visible: %v %v", err, resp)
+		}
+		time.Sleep(20 * time.Millisecond)
 	}
 	type result struct{ seqs, types []string }
 	done := make(chan result, 1)

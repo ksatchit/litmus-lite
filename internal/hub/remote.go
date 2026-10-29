@@ -24,9 +24,11 @@ import (
 //
 //  1. Importing a template only writes a *.chaos.yaml file. Nothing in this
 //     package may execute template content, ever.
-//  2. A pin never grants execution. Whether a command may run is decided later,
-//     at validate/run time, by the human-owned allowlist (exec.allow in
-//     .litmus-lite/config.yaml or -allow-exec). See the spec's SR-EXEC-01..05.
+//  2. A pin never executes anything while it is imported. A scenario file is
+//     code, though: a probe of type command and load.tool: command run what
+//     they say when the scenario is RUN, and there is no allowlist for them
+//     yet (the planned exec.allow / -allow-exec of the spec, SR-EXEC-01..05, is
+//     not built). Read an imported scenario before running it.
 //  3. Embedded IDs always win over a remote item with the same ID, so a pinned
 //     repo cannot shadow a native fault template.
 //  4. Fetches are cached per (repo, ref, path); pin refs to a tag or commit to
@@ -82,7 +84,29 @@ func ParseLock(b []byte) (*Lock, error) {
 	return &l, nil
 }
 
+// checkLock refuses a pin that git would read as an option or that points out
+// of the clone. hub.lock lives in the project, so whoever wrote it (a
+// repository you just cloned, say) must not be able to pass `--upload-pack=...`
+// as the "repo", which git would run as a command.
+func checkLock(lock Lock) error {
+	for name, v := range map[string]string{"repo": lock.Repo, "ref": lock.Ref} {
+		if strings.HasPrefix(v, "-") {
+			return fmt.Errorf("hub.lock: %s %q must not start with '-'", name, v)
+		}
+		if strings.ContainsAny(v, "\x00\r\n") {
+			return fmt.Errorf("hub.lock: %s has a control character", name)
+		}
+	}
+	if lock.Path != "" && !filepath.IsLocal(lock.Path) {
+		return fmt.Errorf("hub.lock: path %q must stay inside the repository", lock.Path)
+	}
+	return nil
+}
+
 func fetchRemote(lock Lock) ([]Item, error) {
+	if err := checkLock(lock); err != nil {
+		return nil, err
+	}
 	dest, err := syncRepo(lock)
 	if err != nil {
 		return nil, err
@@ -111,12 +135,16 @@ func syncRepo(lock Lock) (string, error) {
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return "", err
 	}
-	args := []string{"clone", "--depth", "1"}
+	// "--" ends the options, so the repo is never read as one; ext:: (a
+	// transport that runs a command) is switched off; git never asks for a
+	// password on this terminal.
+	args := []string{"-c", "protocol.ext.allow=never", "clone", "--depth", "1"}
 	if lock.Ref != "" {
 		args = append(args, "--branch", lock.Ref)
 	}
-	args = append(args, lock.Repo, tmp)
+	args = append(args, "--", lock.Repo, tmp)
 	cmd := exec.Command("git", args...)
+	cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		_ = os.RemoveAll(tmp)
 		return "", fmt.Errorf("git clone: %s: %w", strings.TrimSpace(string(out)), err)
@@ -169,6 +197,9 @@ func loadRemoteCatalog(root string) ([]Item, error) {
 		}
 		tmpl := raw.Template
 		if raw.File != "" {
+			if !filepath.IsLocal(raw.File) {
+				return nil, fmt.Errorf("remote hub item %s: file %q must stay inside the repository", raw.ID, raw.File)
+			}
 			tb, err := os.ReadFile(filepath.Join(root, raw.File))
 			if err != nil {
 				return nil, fmt.Errorf("remote hub item %s: %w", raw.ID, err)

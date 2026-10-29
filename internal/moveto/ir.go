@@ -2,13 +2,12 @@ package moveto
 
 import (
 	"encoding/json"
-	"fmt"
 	"time"
 
 	"github.com/ksatchit/litmus-lite/internal/scenario"
 )
 
-// Experiment is the vendor-neutral IR aligned with Litmus 4.0 / Harness RT primitives.
+// Experiment is the vendor-neutral IR that move-to adapters start from.
 type Experiment struct {
 	APIVersion string       `json:"apiVersion"`
 	Kind       string       `json:"kind"`
@@ -50,6 +49,9 @@ type Hypothesis struct {
 	Metric   string `json:"metric"`
 	Operator string `json:"operator"`
 	Value    string `json:"value"`
+	// AllowNoData is carried so that an experiment that tolerates an empty
+	// window still does after the move.
+	AllowNoData bool `json:"allowNoData,omitempty"`
 }
 
 func FromScenario(s *scenario.Scenario) Experiment {
@@ -84,17 +86,4 @@ func FromScenario(s *scenario.Scenario) Experiment {
 func JSON(ex Experiment) []byte {
 	b, _ := json.MarshalIndent(ex, "", "  ")
 	return append(b, '\n')
-}
-
-// Push is reserved for remote adapters. The litmus adapter is a local file writer
-// (see internal/moveto/litmus). harness remains stubbed and attaches IR via the CLI.
-func Push(adapter string, ex Experiment) error {
-	switch adapter {
-	case "ir", "litmus", "":
-		return nil
-	case "harness":
-		return fmt.Errorf("adapter %q is not implemented; IR is ready (%d faults, %d probes)", adapter, len(ex.Faults), len(ex.Probes))
-	default:
-		return fmt.Errorf("unknown adapter %q", adapter)
-	}
 }

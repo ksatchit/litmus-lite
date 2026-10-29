@@ -1,8 +1,8 @@
 # LaunchPad + litmus-lite
 
-[LaunchPad](https://github.com/umamukkara/launchpad) is the shared demo app: `missioncontrol` (REST `:8080`) talks to `engine` (gRPC `:7070`).
+[LaunchPad](https://github.com/umamukkara/launchpad) is a small two-process app used as a sample target: `missioncontrol` (REST `:8080`) talks to `engine` (gRPC `:7070`).
 
-Walkthroughs: [terminal](../../docs/cookbooks/demo-playbook.md) · [Cursor-first](../../docs/cookbooks/demo-playbook-cursor.md) · [with VegaLoad](../../docs/cookbooks/demo-playbook-vegaload.md).
+Walkthroughs: [terminal](../../docs/cookbooks/launchpad.md) · [with an agent](../../docs/cookbooks/with-an-agent.md) · [with a load generator](../../docs/cookbooks/load-and-chaos.md).
 
 ## Files
 
@@ -17,11 +17,10 @@ Walkthroughs: [terminal](../../docs/cookbooks/demo-playbook.md) · [Cursor-first
 
 ```
 # LaunchPad: go run ./cmd/engine  and  go run ./cmd/missioncontrol
-go build -o litmus-lite ./cmd/litmus-lite
-./litmus-lite run examples/launchpad/ignite.chaos.yaml
+litmus-lite run examples/launchpad/ignite.chaos.yaml
 open report.html
 PID=$(pgrep -n engine)
-./litmus-lite run examples/launchpad/pause-engine.chaos.yaml -allow-pid "$PID"
+litmus-lite run examples/launchpad/pause-engine.chaos.yaml -allow-pid "$PID"
 ```
 
 Probes and VegaLoad must use the **proxy listen** address (`:18080`) for HTTP faults. Process pause talks to `:8080` (no proxy).

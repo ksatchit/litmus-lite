@@ -2,18 +2,39 @@ name: release
 on:
   push:
     tags: ["v*"]
+
 permissions:
-  contents: write
+  contents: read
+
 jobs:
-  goreleaser:
+  # The release is built only from a tag that passes the same checks as a
+  # pull request. The tests used to be a goreleaser hook, which could stop a
+  # release after the tag and the empty GitHub release already existed.
+  test:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: test -z "$(gofmt -l .)"
+      - run: go vet ./...
+      - run: go test -race ./...
+
+  goreleaser:
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      # The latest Go, not the minimum in go.mod: the standard library goes
+      # into the binary, and its fixes come with the toolchain.
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: stable
       - uses: goreleaser/goreleaser-action@v6
         with:
           distribution: goreleaser
@@ -21,4 +42,3 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          HOMEBREW_TAP_GITHUB_TOKEN: ${{ secrets.HOMEBREW_TAP_GITHUB_TOKEN }}

@@ -17,6 +17,9 @@ type Case struct {
 	Params   any
 	Want     string
 	MustFile bool // tool output JSON includes path; that file must exist
+	// WantError marks a tools/call that must be refused: the result is a tool
+	// error and its text contains Want.
+	WantError bool
 }
 
 func EvalSuite() []Case {
@@ -28,15 +31,15 @@ func evalSuite(work string) []Case {
 		work = os.TempDir()
 	}
 	root, _ := moduleRoot()
-	ignite := filepath.Join(root, "examples", "launchpad", "ignite.chaos.yaml")
+	charge := filepath.Join(root, "examples", "cashier", "charge.chaos.yaml")
 	return []Case{
 		{Name: EvalSuiteVersion + "/initialize", Method: "initialize", Want: "litmus-lite"},
 		{Name: EvalSuiteVersion + "/tools-list", Method: "tools/list", Want: "run_test"},
 		{
 			Name:   EvalSuiteVersion + "/validate_scenario",
 			Method: "tools/call",
-			Params: toolCall{Name: "validate_scenario", Args: map[string]any{"file": ignite}},
-			Want:   "launchpad-http-latency",
+			Params: toolCall{Name: "validate_scenario", Args: map[string]any{"file": charge}},
+			Want:   "cashier-charge",
 		},
 		{
 			Name:   EvalSuiteVersion + "/list_faults",
@@ -51,6 +54,30 @@ func evalSuite(work string) []Case {
 			Want:     ".chaos.yaml",
 			MustFile: true,
 		},
+		// An agent cannot confirm a destructive action for the person. Each of
+		// these must be refused before any CLI runs, naming how a person
+		// enables it.
+		{
+			Name:      EvalSuiteVersion + "/refuses-agent-yes",
+			Method:    "tools/call",
+			Params:    toolCall{Name: "run_test", Args: map[string]any{"file": charge, "yes": true}},
+			Want:      allowEnv,
+			WantError: true,
+		},
+		{
+			Name:      EvalSuiteVersion + "/refuses-agent-allow-pid",
+			Method:    "tools/call",
+			Params:    toolCall{Name: "validate_scenario", Args: map[string]any{"file": charge, "allow-pid": "1"}},
+			Want:      allowEnv,
+			WantError: true,
+		},
+		{
+			Name:      EvalSuiteVersion + "/refuses-agent-allow-target",
+			Method:    "tools/call",
+			Params:    toolCall{Name: "run_test", Args: map[string]any{"file": charge, "allow-target": "example.com"}},
+			Want:      allowEnv,
+			WantError: true,
+		},
 		{
 			Name:     EvalSuiteVersion + "/create_scenario",
 			Method:   "tools/call",
@@ -62,6 +89,12 @@ func evalSuite(work string) []Case {
 }
 
 func Eval() (passed, failed int, report string) {
+	// The refusals are the default; a server a person enabled would answer
+	// differently, so the suite runs as if nobody had.
+	if old, had := os.LookupEnv(allowEnv); had {
+		os.Unsetenv(allowEnv)
+		defer os.Setenv(allowEnv, old)
+	}
 	var buf bytes.Buffer
 	if err := toolsHaveCLI(); err != nil {
 		failed++
@@ -90,7 +123,7 @@ func Eval() (passed, failed int, report string) {
 		b, _ := json.Marshal(resp)
 		text := string(b)
 		ok := strings.Contains(text, c.Want)
-		if c.Method == "tools/call" && hasToolError(resp) {
+		if c.Method == "tools/call" && hasToolError(resp) != c.WantError {
 			ok = false
 		}
 		if c.Name == EvalSuiteVersion+"/tools-list" {

@@ -1,6 +1,7 @@
 package hub
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -238,7 +239,7 @@ faults:
     kind: docker.pause
     duration: 8s
     params:
-      name: launchpad-engine
+      name: my-container
 probes:
   - name: healthz
     type: http
@@ -277,6 +278,15 @@ probes:
     url: http://127.0.0.1:8080/healthz
     interval: 300ms
     expect: { status: 200 }
+hypotheses:
+  - name: stays-healthy
+    metric: error_rate
+    operator: "<"
+    value: 5%
+  - name: recovers
+    metric: recovery
+    operator: <=
+    value: 5s
 rollback: always
 `,
 	},
@@ -304,6 +314,15 @@ probes:
     url: http://127.0.0.1:8080/healthz
     interval: 300ms
     expect: { status: 200 }
+hypotheses:
+  - name: stays-healthy
+    metric: error_rate
+    operator: "<"
+    value: 5%
+  - name: recovers
+    metric: recovery
+    operator: <=
+    value: 5s
 rollback: always
 `,
 	},
@@ -333,6 +352,15 @@ probes:
     url: http://127.0.0.1:8080/healthz
     interval: 300ms
     expect: { status: 200 }
+hypotheses:
+  - name: stays-healthy
+    metric: error_rate
+    operator: "<"
+    value: 5%
+  - name: recovers
+    metric: recovery
+    operator: <=
+    value: 5s
 rollback: always
 `,
 	},
@@ -428,6 +456,10 @@ func writeImport(it Item, beside, name string) (string, error) {
 	if name == "" {
 		name = strings.ReplaceAll(it.ID, ".", "-")
 	}
+	// name is a file stem: it must not walk out of the directory.
+	if strings.ContainsAny(name, `/\`) || name == "." || name == ".." {
+		return "", fmt.Errorf("import name %q must be a file name, not a path", name)
+	}
 	if !strings.HasSuffix(name, ".chaos.yaml") {
 		name += ".chaos.yaml"
 	}
@@ -435,7 +467,22 @@ func writeImport(it Item, beside, name string) (string, error) {
 		return "", err
 	}
 	path := filepath.Join(beside, name)
-	if err := os.WriteFile(path, []byte(it.Template), 0o644); err != nil {
+	// O_EXCL: an import never replaces a scenario that is already there (it may
+	// hold hand-made changes), nor follows a link planted at that name.
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+	if err != nil {
+		if errors.Is(err, os.ErrExist) {
+			return "", fmt.Errorf("%s already exists; pass another -name or remove it", path)
+		}
+		return "", err
+	}
+	if _, err := f.WriteString(it.Template); err != nil {
+		f.Close()
+		_ = os.Remove(path)
+		return "", err
+	}
+	if err := f.Close(); err != nil {
+		_ = os.Remove(path)
 		return "", err
 	}
 	return path, nil

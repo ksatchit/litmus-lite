@@ -1,0 +1,51 @@
+# The red run of the quick start. Same fault as charge.chaos.yaml (the charge
+# hook fails for 8 seconds), but this one states what a service with a
+# fallback would do: keep errors under 5% while the charge step is down.
+# cashier has no fallback, so this run fails, and the report says why.
+#
+# Start examples/cashier with:
+#   LITMUS_LITE_FAILPOINT=charge,charge-slow
+#   LITMUS_LITE_FAILPOINT_TOKEN=cashier-demo
+apiVersion: litmus-lite.io/v1
+kind: Scenario
+metadata:
+  name: cashier-charge-must-survive
+target:
+  kind: http
+  baseUrl: http://127.0.0.1:8091
+baseline: 3s
+recover: 4s
+steadyState:
+  - name: healthz
+    type: http
+    url: http://127.0.0.1:8091/healthz
+    expect: { status: 200 }
+    mode: SOT
+faults:
+  - name: charge-fails
+    kind: failpoint
+    duration: 8s
+    params:
+      url: http://127.0.0.1:8091/_litmus/failpoint
+      name: charge
+      token: cashier-demo
+probes:
+  - name: charge
+    type: http
+    url: http://127.0.0.1:8091/charge
+    interval: 200ms
+    timeout: 1s
+    mode: continuous
+    expect:
+      status: 200
+      body: { contains: paid }
+hypotheses:
+  - name: charge survives its own outage
+    metric: error_rate
+    operator: "<"
+    value: 5%
+  - name: recovers
+    metric: recovery
+    operator: <=
+    value: 5s
+rollback: always

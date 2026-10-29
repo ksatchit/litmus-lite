@@ -1,6 +1,5 @@
-// Command cashier is the Mode B sample. It is a separate process from
-// LaunchPad: one route, one instrumented call, healthy until a scenario
-// arms the hook.
+// Command cashier is the failpoint sample: one route, one instrumented call,
+// healthy until a scenario arms the hook.
 package main
 
 import (

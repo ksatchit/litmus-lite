@@ -1,6 +1,8 @@
 package scenario
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -10,6 +12,20 @@ import (
 )
 
 const APIVersion = "litmus-lite.io/v1"
+
+// Values of probe mode.
+//
+//	continuous  every interval, from the start of the run to the end of recovery
+//	on-chaos    every interval, and only while the faults are armed
+//	SOT         once before the faults, as steadyState probes do; a failure
+//	            stops the run
+//	EOT         once after recovery
+const (
+	ModeContinuous = "continuous"
+	ModeOnChaos    = "on-chaos"
+	ModeSOT        = "SOT"
+	ModeEOT        = "EOT"
+)
 
 // Values of load.start.
 const (
@@ -31,6 +47,11 @@ type Scenario struct {
 	Rollback      string         `yaml:"rollback" json:"rollback,omitempty"`
 	Baseline      string         `yaml:"baseline" json:"baseline,omitempty"`
 	Recover       string         `yaml:"recover" json:"recover,omitempty"`
+
+	// Warnings are problems Parse found that do not stop the scenario from
+	// running, for example a key that no field of the format has (a typo such
+	// as "intervall"). run and validate show them; -strict makes them errors.
+	Warnings []string `yaml:"-" json:"-"`
 }
 
 type Metadata struct {
@@ -66,6 +87,10 @@ type Hypothesis struct {
 	Metric   string `yaml:"metric" json:"metric"`
 	Operator string `yaml:"operator" json:"operator"`
 	Value    string `yaml:"value" json:"value"`
+	// AllowNoData lets the hypothesis pass when the window it judges has no
+	// samples (or, for recovery, none after the fault). Without it, no data
+	// is a failure: a run that measured nothing proved nothing.
+	AllowNoData bool `yaml:"allowNoData" json:"allowNoData,omitempty"`
 }
 
 type LoadSpec struct {
@@ -103,10 +128,36 @@ func Parse(b []byte) (*Scenario, error) {
 	if err := yaml.Unmarshal(b, &s); err != nil {
 		return nil, fmt.Errorf("yaml: %w", err)
 	}
+	s.Warnings = unknownFields(b)
 	if err := s.Normalize(); err != nil {
 		return nil, err
 	}
 	return &s, nil
+}
+
+// unknownFields lists the keys in the document that no field of the scenario
+// format has. The document has already decoded without them, so a typo such
+// as "operater" or "intervall" would otherwise do nothing and say nothing.
+// It reads the document a second time with known fields enforced and keeps
+// only the "not found" findings, so that anything else stays the first
+// decode's business. Params and expect maps are free-form here; the fault and
+// probe kinds check their own keys.
+func unknownFields(b []byte) []string {
+	dec := yaml.NewDecoder(bytes.NewReader(b))
+	dec.KnownFields(true)
+	var again Scenario
+	err := dec.Decode(&again)
+	var te *yaml.TypeError
+	if !errors.As(err, &te) {
+		return nil
+	}
+	var out []string
+	for _, m := range te.Errors {
+		if strings.Contains(m, "not found in type") {
+			out = append(out, "scenario: "+m)
+		}
+	}
+	return out
 }
 
 func (s *Scenario) Normalize() error {
@@ -159,11 +210,12 @@ func (s *Scenario) Normalize() error {
 
 // Validate checks the scenario's structure.
 //
-// TODO(strictness): fault params and probe expect maps are free-form
-// (map[string]any) and unknown keys are not reported. Planned: report unknown
-// keys as warnings for existing kinds (and as errors for new kinds), with a
-// -strict flag that turns warnings into errors. When existing kinds start
-// failing on unknown keys is deliberately deferred; revisit later.
+// Fault params and probe expect maps are free-form (map[string]any) here; the
+// fault kinds and probe types report keys they do not read (faults.Lint,
+// probe.Lint), and the document's own unknown fields are in Warnings.
+//
+// TODO(strictness): when existing kinds start failing on unknown keys, rather
+// than warning (-strict makes them errors), is deliberately deferred; revisit.
 func (s *Scenario) Validate() error {
 	if s.APIVersion != APIVersion {
 		return fmt.Errorf("unsupported apiVersion %q (want %s)", s.APIVersion, APIVersion)
@@ -204,6 +256,32 @@ func (s *Scenario) Validate() error {
 		}
 		if h.Value == "" {
 			return fmt.Errorf("hypothesis %q needs value", h.Name)
+		}
+		if _, err := h.Limit(); err != nil {
+			return err
+		}
+	}
+	for _, group := range []struct {
+		name   string
+		probes []Probe
+	}{{"steadyState", s.SteadyState}, {"probes", s.Probes}} {
+		for _, p := range group.probes {
+			switch strings.ToLower(p.Type) {
+			case "", "http", "cmd", "command":
+			default:
+				return fmt.Errorf("%s probe %q: unknown type %q (want http or cmd)", group.name, p.Name, p.Type)
+			}
+			if t := strings.ToLower(p.Type); t == "" || t == "http" {
+				if _, err := BodyExpect(p.Expect); err != nil {
+					return fmt.Errorf("%s probe %q: %w", group.name, p.Name, err)
+				}
+			}
+			switch p.Mode {
+			case "", ModeContinuous, ModeOnChaos, ModeSOT, ModeEOT:
+			default:
+				return fmt.Errorf("%s probe %q: unknown mode %q (want %s, %s, %s or %s)",
+					group.name, p.Name, p.Mode, ModeContinuous, ModeOnChaos, ModeSOT, ModeEOT)
+			}
 		}
 	}
 	if s.Load != nil {

@@ -482,3 +482,23 @@ func TestCheckBind(t *testing.T) {
 		t.Errorf("want an error for a malformed address")
 	}
 }
+
+// Where the load generator was run from is a local path. It stays in the
+// result (report.json) and does not travel with the stream; the tool and
+// version do.
+func TestFinishedLeavesTheGeneratorPathOut(t *testing.T) {
+	res := sampleResult()
+	res.LoadGenerator = &report.LoadGenerator{Tool: "vegaload", Version: "0.9.0", Path: "/Users/someone/bin/vegaload", Via: "PATH"}
+	fin := BuildFinished(res, false)
+	b, _ := json.Marshal(fin)
+	if strings.Contains(string(b), "/Users/someone") {
+		t.Fatalf("a local path went into the event: %s", b)
+	}
+	g := fin.Result.LoadGenerator
+	if g == nil || g.Tool != "vegaload" || g.Version != "0.9.0" || g.Via != "PATH" {
+		t.Fatalf("generator in the event: %+v", g)
+	}
+	if res.LoadGenerator.Path == "" {
+		t.Fatal("the caller's result was changed; report.json must keep the path")
+	}
+}

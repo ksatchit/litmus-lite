@@ -30,8 +30,9 @@ type RunOptions struct {
 	// RunID is exported to the generator as LITMUS_LITE_RUN_ID (and, for
 	// vegaload, VEGALOAD_RUN_ID) so its own recordings carry the same id.
 	RunID string
-	// Progress, when set, asks for live points. Only vegaload supports it: it is
-	// started with -stream-file and its points are read as they are written.
+	// Progress, when set, asks for live points. Only a generator that can write
+	// a stream file supports it (today vegaload, found out from its `run -h`):
+	// it is started with -stream-file and its points are read as they are written.
 	// It is called from one goroutine, in order, and must return quickly.
 	Progress func(LivePoint)
 }

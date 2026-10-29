@@ -69,7 +69,7 @@ func Fail(name string) error {
 	return nil
 }
 
-// Panic panics when name is active. A live demo should use Fail: a panic
+// Panic panics when name is active. In a service you want to keep up, use Fail: a panic
 // exits the process, so the recovery probes have nothing left to call.
 func Panic(name string) {
 	if active(name) {

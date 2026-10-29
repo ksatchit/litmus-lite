@@ -1,0 +1,13 @@
+# Keep line endings the same on every platform. Windows checkouts otherwise
+# convert text files to CRLF, and tests compare recordings and reports with
+# the fixtures in docs/stream/fixtures byte for byte.
+* text=auto
+*.go text eol=lf
+*.md text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.ndjson text eol=lf
+*.js text eol=lf
+*.py text eol=lf
+*.sh text eol=lf

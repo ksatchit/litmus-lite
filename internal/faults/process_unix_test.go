@@ -139,17 +139,35 @@ func TestProcessKillCommandUsesAllowList(t *testing.T) {
 	}
 }
 
+// helperEnv makes the test binary act as a sleeping helper process instead of
+// running tests (see TestMain and uniqueHelper).
+const helperEnv = "LITMUS_LITE_TEST_SLEEP_HELPER"
+
+func TestMain(m *testing.M) {
+	if os.Getenv(helperEnv) != "" {
+		time.Sleep(30 * time.Second)
+		return
+	}
+	os.Exit(m.Run())
+}
+
+// uniqueHelper starts a process whose name no other process has, so that a
+// `command` match finds exactly it. The helper is this test binary under a
+// symlink with that name, not a link to `sleep`: where sleep is one applet of
+// a multi-call binary (the Rust coreutils of recent Ubuntu images) it picks
+// the applet from its own name, finds none and exits at once.
 func uniqueHelper(t *testing.T) *exec.Cmd {
 	t.Helper()
-	sleepBin, err := exec.LookPath("sleep")
+	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
 	}
 	bin := filepath.Join(t.TempDir(), "ll-pause-target")
-	if err := os.Symlink(sleepBin, bin); err != nil {
+	if err := os.Symlink(self, bin); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(bin, "30")
+	cmd := exec.Command(bin)
+	cmd.Env = append(os.Environ(), helperEnv+"=1")
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}

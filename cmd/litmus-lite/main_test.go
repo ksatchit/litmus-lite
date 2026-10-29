@@ -18,6 +18,13 @@ func TestMain(m *testing.M) {
 	os.Setenv("LITMUS_LITE_LIVE", "off")
 	os.Setenv("LITMUS_LITE_OPEN", "off")
 	os.Unsetenv("LITMUS_LITE_LIVE_URL")
+	// A test can run this binary as the CLI (see interrupt_unix_test.go), to
+	// test what only a real process shows: signals and exit codes.
+	if os.Getenv("LITMUS_LITE_TEST_AS_CLI") == "1" {
+		code := run(os.Args)
+		os.RemoveAll(dir)
+		os.Exit(code)
+	}
 	code := m.Run()
 	os.RemoveAll(dir)
 	os.Exit(code)

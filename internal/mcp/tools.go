@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -32,12 +33,61 @@ func boolArg(desc string) map[string]any {
 	return map[string]any{"type": "boolean", "description": desc}
 }
 
+// allowEnv is the environment variable a person sets in the MCP server's env
+// (the "env" of its entry in mcp.json) to let tool calls forward safety flags.
+// Its value is a comma-separated list of the flags: yes, allow-target,
+// allow-pid. Without it a tool call that carries one of them is refused.
+//
+// The flags are the person's consent to a destructive or out-of-scope action.
+// If the agent could supply them, "refused unless -yes" would mean "refused
+// unless the agent says yes", and a scenario file the agent wrote itself could
+// kill a process the person never named. Setting this is the person saying,
+// once and in a place the agent does not write, that their agent may.
+const allowEnv = "LITMUS_LITE_MCP_ALLOW"
+
+// safetyFlagNames are the flags allowEnv can enable.
+var safetyFlagNames = []string{"yes", "allow-target", "allow-pid"}
+
+// allowedFlags returns the safety flags the person enabled for this server.
+func allowedFlags() map[string]bool {
+	on := map[string]bool{}
+	for _, f := range strings.Split(os.Getenv(allowEnv), ",") {
+		on[strings.ToLower(strings.TrimSpace(f))] = true
+	}
+	return on
+}
+
+// checkSafetyArgs refuses a tool call that carries a safety flag nobody
+// enabled. The refusal names the flag and how a person enables it, and it
+// changes nothing: no CLI is run.
+func checkSafetyArgs(args map[string]any) error {
+	on := allowedFlags()
+	for _, f := range safetyFlagNames {
+		supplied := false
+		if f == "yes" {
+			supplied = flagOn(args, f)
+		} else if v, ok := args[f]; ok && v != nil && fmt.Sprint(v) != "" {
+			supplied = true
+		}
+		if supplied && !on[f] {
+			return fmt.Errorf("the %q argument is refused: it confirms a destructive or out-of-scope action, and a tool call cannot confirm that for the person. "+
+				"If you are the person and accept that your agent may, add %s=%s to the env of this MCP server (litmus-lite init -env %s=%s) and restart it; "+
+				"or run the same command yourself with -%s",
+				f, allowEnv, f, allowEnv, f, f)
+		}
+	}
+	return nil
+}
+
 // safetyProps are the flags validate_scenario and run_test forward to the CLI.
+// They are forwarded only when a person enabled them (allowEnv).
 func safetyProps(extra map[string]any) map[string]any {
+	const gate = " Refused unless the person who set up this MCP server enabled it with " + allowEnv + "; if it is refused, tell them, or give them the CLI command to run themselves."
 	p := map[string]any{
-		"yes":          boolArg("Forward -yes: confirm a destructive fault (process.kill, disk.fill). Not needed for latency, status, timeout or pause faults."),
-		"allow-target": strArg("Forward -allow-target: comma-separated extra non-loopback hosts the scenario may touch."),
-		"allow-pid":    strArg("Forward -allow-pid: the one PID process.pause or process.kill may signal, for example \"4242\". Required for those faults; no other PID is signalled."),
+		"yes":          boolArg("Forward -yes: confirm a destructive fault (process.kill, disk.fill). Not needed for latency, status, timeout or pause faults." + gate),
+		"allow-target": strArg("Forward -allow-target: comma-separated extra non-loopback hosts the scenario may touch." + gate),
+		"allow-pid":    strArg("Forward -allow-pid: the one PID process.pause or process.kill may signal, for example \"4242\". Required for those faults; no other PID is signalled." + gate),
+		"strict":       boolArg("Forward -strict: fail on a key or param the scenario format does not read (a typo such as \"dealy\"), instead of warning. Recommended for a scenario you just wrote."),
 	}
 	for k, v := range extra {
 		p[k] = v
@@ -63,7 +113,7 @@ func allTools() []tool {
 		},
 		{
 			Name: "run_test", CLI: "run",
-			Desc: "litmus-lite run: execute a scenario (steady state, inject, recover) and write a JSON report and an overlay HTML report. The first text item of the result is the report as JSON. By default the run is also shown live in the user's browser (the live view): the page opens by itself and its URL is in a second text item, \"live view: URL\". Tell the user that URL. Pass no-live only if the user does not want the live view, or no-open to stream without opening a browser.",
+			Desc: "litmus-lite run: execute a scenario (steady state, inject, recover) and write a JSON report and an overlay HTML report. The first text item of the result is the report as JSON. If a live-view service is configured (LITMUS_LITE_LIVE_URL in the server's environment, or kept by `litmus-lite live enable`), the run is also shown live in the user's browser: the page opens by itself and its URL is in a second text item, \"live view: URL\". Tell the user that URL. Pass no-live if the user does not want the live view, or no-open to stream without opening a browser. With no service configured nothing is shown or sent.",
 			Props: safetyProps(map[string]any{
 				"file":        strArg("Path to the *.chaos.yaml file."),
 				"out":         strArg("Where to write the JSON report, for example report.json. Pass this path to diagnose_failure or get_results."),
@@ -72,7 +122,7 @@ func allTools() []tool {
 				"stream_pull": strArg("Optional. Forward -stream-pull: address to serve the run as SSE on while it runs, for example 127.0.0.1:7070. The tool call returns after the run and a short linger."),
 				"run_id":      strArg("Optional. Forward -run-id: the id used on stream events (A-Z a-z 0-9 . _ -, up to 64). Give a generator the same id to join their streams."),
 				"labels":      strArg("Optional. Forward -label: comma-separated key=value labels for every stream event, for example \"service=checkout,env=ci\"."),
-				"live":        boolArg("Optional. Forward -live: show the run in the live view even when CI is set or a stream_* destination is given. The live view is already the default when none is given."),
+				"live":        boolArg("Optional. Forward -live: also show the run in the live view when a stream_* destination is given. It fails if no live-view service is configured. When one is configured and no stream_* destination is given, the live view is used without this."),
 				"no-live":     boolArg("Optional. Forward -no-live: do not stream to the live view or open a browser."),
 				"no-open":     boolArg("Optional. Forward -no-open: stream to the live view but do not open the browser."),
 			}),
@@ -163,6 +213,11 @@ func toolDefs() []map[string]any {
 	return out
 }
 
+// cliArgs maps a tool call to the argv of the CLI command it wraps. Values the
+// caller chooses and that go in a positional place (a file, an id) come after
+// "--", so one that starts with "-" is a file name and never a flag: a tool
+// call cannot add a flag that the tool does not declare (for example
+// -stream-insecure, which docs/streaming.md says no tool call can set).
 func cliArgs(name string, args map[string]any) ([]string, error) {
 	str := func(k, def string) string {
 		if args == nil {
@@ -174,6 +229,9 @@ func cliArgs(name string, args map[string]any) ([]string, error) {
 		return def
 	}
 	safetyFlags := func(argv []string) []string {
+		if flagOn(args, "strict") {
+			argv = append(argv, "-strict")
+		}
 		if flagOn(args, "yes") {
 			argv = append(argv, "-yes")
 		}
@@ -188,7 +246,8 @@ func cliArgs(name string, args map[string]any) ([]string, error) {
 	// Streaming arguments are passed to the same flags `run` has. There is no
 	// MCP-only streaming path, and nothing here can relax the CLI's rules.
 	// Without live, no-live or no-open, `run` does what it does from a shell:
-	// the live view is on unless CI is set or a destination is given.
+	// the live view is used only when a service is configured and no other
+	// destination is given.
 	streamFlags := func(argv []string) []string {
 		for _, f := range []string{"live", "no-live", "no-open"} {
 			if flagOn(args, f) {
@@ -221,7 +280,7 @@ func cliArgs(name string, args map[string]any) ([]string, error) {
 		return []string{"new", "-beside", str("beside", "."), "-name", str("name", "scenario"), "-output", "json"}, nil
 	case "validate_scenario":
 		argv := safetyFlags([]string{"validate", "-output", "json"})
-		return append(argv, str("file", "")), nil
+		return append(argv, "--", str("file", "")), nil
 	case "run_test":
 		argv := []string{"run", "-output", "json"}
 		if o := str("out", ""); o != "" {
@@ -229,9 +288,9 @@ func cliArgs(name string, args map[string]any) ([]string, error) {
 		}
 		argv = safetyFlags(argv)
 		argv = streamFlags(argv)
-		return append(argv, str("file", "")), nil
+		return append(argv, "--", str("file", "")), nil
 	case "diagnose_failure":
-		return []string{"diagnose", "-output", "json", str("file", "")}, nil
+		return []string{"diagnose", "-output", "json", "--", str("file", "")}, nil
 	case "list_faults":
 		return []string{"hub", "list", "-output", "json"}, nil
 	case "hub_import":
@@ -239,9 +298,9 @@ func cliArgs(name string, args map[string]any) ([]string, error) {
 		if n := str("name", ""); n != "" {
 			argv = append(argv, "-name", n)
 		}
-		return append(argv, str("id", "")), nil
+		return append(argv, "--", str("id", "")), nil
 	case "compare_reports":
-		return []string{"compare", "-output", "json", str("baseline", ""), str("candidate", "")}, nil
+		return []string{"compare", "-output", "json", "--", str("baseline", ""), str("candidate", "")}, nil
 	case "doctor":
 		argv := []string{"doctor", "-output", "json"}
 		if f := str("file", ""); f != "" {
@@ -294,6 +353,9 @@ func runTool(name string, args map[string]any) (toolResult, error) {
 	if t.CLI == "" && !t.ReadFile {
 		return toolResult{}, fmt.Errorf("tool %q has no CLI equivalent", name)
 	}
+	if err := checkSafetyArgs(args); err != nil {
+		return toolResult{}, err
+	}
 	str := func(k, def string) string {
 		if args == nil {
 			return def
@@ -304,8 +366,8 @@ func runTool(name string, args map[string]any) (toolResult, error) {
 		return def
 	}
 	if t.ReadFile {
-		b, err := os.ReadFile(str("file", "report.json"))
-		return toolResult{Text: string(b)}, err
+		text, err := readReport(str("file", "report.json"))
+		return toolResult{Text: text}, err
 	}
 	argv, err := cliArgs(name, args)
 	if err != nil {
@@ -337,3 +399,35 @@ func runTool(name string, args map[string]any) (toolResult, error) {
 // exitNotPassed is the CLI exit code of a run or comparison that finished and
 // did not pass (a failed hypothesis, a regression).
 const exitNotPassed = 3
+
+// maxReportBytes bounds what get_results reads. A report of a long run with
+// every probe sample is a few MB; nothing legitimate comes near this.
+const maxReportBytes = 64 << 20
+
+// readReport returns the text of a report file that `run` wrote, and nothing
+// else. get_results is the one tool with no CLI command behind it, so it must
+// not be a way to read any file the server can: a path that is not a litmus-lite
+// report (a key, a config file, any other JSON) is refused, and the refusal
+// does not quote what the file held.
+func readReport(path string) (string, error) {
+	st, err := os.Stat(path)
+	if err != nil {
+		return "", err
+	}
+	if !st.Mode().IsRegular() || st.Size() > maxReportBytes {
+		return "", fmt.Errorf("%s is not a litmus-lite report", path)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	var probe struct {
+		Name   *string         `json:"name"`
+		Passed *bool           `json:"passed"`
+		Phases json.RawMessage `json:"phases"`
+	}
+	if json.Unmarshal(b, &probe) != nil || probe.Name == nil || probe.Passed == nil || len(probe.Phases) == 0 {
+		return "", fmt.Errorf("%s is not a litmus-lite report", path)
+	}
+	return string(b), nil
+}

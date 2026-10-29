@@ -16,6 +16,8 @@ type cpuHog struct{}
 func (cpuHog) Name() string { return "cpu.hog" }
 func (cpuHog) OS() []string { return nil }
 
+func (cpuHog) ParamKeys() []string { return []string{"workers"} }
+
 func (cpuHog) Validate(f scenario.Fault) error {
 	n := scenario.IntParam(f.Params, "workers", 1)
 	if n < 1 {
@@ -66,6 +68,8 @@ type memoryHog struct{}
 
 func (memoryHog) Name() string { return "memory.hog" }
 func (memoryHog) OS() []string { return nil }
+
+func (memoryHog) ParamKeys() []string { return []string{"size"} }
 
 func (memoryHog) Validate(f scenario.Fault) error {
 	n, err := parseBytes(scenario.StringParam(f.Params, "size"), 32<<20)

@@ -77,38 +77,45 @@ func TestDamagedFileIsAnErrorNotANewIdentity(t *testing.T) {
 	}
 }
 
-func TestBaseURLPrecedenceAndRules(t *testing.T) {
-	isolate(t)
-	id := &Identity{ProjectID: "p-abc", Base: "https://from-file.example"}
+func TestDestinationPrecedenceAndRules(t *testing.T) {
+	dir := isolate(t)
 
-	u, _ := id.BaseURL("")
-	if u.String() != "https://from-file.example" {
-		t.Fatalf("file: %s", u)
+	// Nothing configured: no destination, and no file made by asking.
+	u, err := Destination("")
+	if u != nil || err != nil {
+		t.Fatalf("nothing configured: %v %v", u, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "live.json")); err == nil {
+		t.Fatal("asking for the destination made a file")
+	}
+
+	if _, _, err := Enable("https://from-file.example"); err != nil {
+		t.Fatal(err)
+	}
+	u, _ = Destination("")
+	if u == nil || u.String() != "https://from-file.example" {
+		t.Fatalf("file: %v", u)
 	}
 	t.Setenv("LITMUS_LITE_LIVE_URL", "https://from-env.example/")
-	u, _ = id.BaseURL("")
+	u, _ = Destination("")
 	if u.String() != "https://from-env.example" {
 		t.Fatalf("env: %s", u)
 	}
-	u, _ = id.BaseURL("https://from-flag.example")
+	u, _ = Destination("https://from-flag.example")
 	if u.String() != "https://from-flag.example" {
 		t.Fatalf("flag: %s", u)
 	}
-	t.Setenv("LITMUS_LITE_LIVE_URL", "")
-	u, _ = (&Identity{}).BaseURL("")
-	if u.String() != DefaultBase {
-		t.Fatalf("default: %s", u)
-	}
 
 	for _, bad := range []string{"ftp://x", "nohost", "https://user:pw@x.example", "https://x.example/?k=v", "https://x.example/#f"} {
-		if _, err := id.BaseURL(bad); err == nil {
+		if _, err := Destination(bad); err == nil {
 			t.Fatalf("%q accepted", bad)
 		} else if strings.Contains(err.Error(), "pw") {
 			t.Fatalf("the error repeats a credential: %v", err)
 		}
 	}
 
-	base, _ := id.BaseURL("https://live.example")
+	id := &Identity{ProjectID: "p-abc"}
+	base, _ := Destination("https://live.example")
 	if got := id.PageURL(base); got != "https://live.example/p/p-abc" {
 		t.Fatalf("page %s", got)
 	}
@@ -117,33 +124,83 @@ func TestBaseURLPrecedenceAndRules(t *testing.T) {
 	}
 }
 
+func TestEnableKeepsTheAddressAndDisableForgetsIt(t *testing.T) {
+	isolate(t)
+	if _, _, err := Enable("not a url"); err == nil {
+		t.Fatal("a bad address was kept")
+	}
+	if u, _ := Destination(""); u != nil {
+		t.Fatal("a refused address was kept")
+	}
+
+	id, base, err := Enable("https://live.example/")
+	if err != nil || base.String() != "https://live.example" || !id.Created {
+		t.Fatalf("enable: %+v %v %v", id, base, err)
+	}
+	again, _, _ := Enable("https://other.example")
+	if again.Created || again.ProjectID != id.ProjectID || again.PushToken != id.PushToken {
+		t.Fatalf("enabling again made a new identity: %+v", again)
+	}
+	if u, _ := Destination(""); u.String() != "https://other.example" {
+		t.Fatalf("kept %v", u)
+	}
+
+	had, err := Disable()
+	if err != nil || !had {
+		t.Fatalf("disable: %v %v", had, err)
+	}
+	if u, _ := Destination(""); u != nil {
+		t.Fatalf("still configured: %v", u)
+	}
+	back, _ := Load()
+	if back.ProjectID != id.ProjectID {
+		t.Fatal("disable lost the identity")
+	}
+	if had, _ := Disable(); had {
+		t.Fatal("nothing was left to forget")
+	}
+}
+
+func TestDisableMakesNoFile(t *testing.T) {
+	dir := isolate(t)
+	if had, err := Disable(); had || err != nil {
+		t.Fatalf("%v %v", had, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "live.json")); err == nil {
+		t.Fatal("disable made a file")
+	}
+}
+
+func TestResetKeepsTheDestination(t *testing.T) {
+	isolate(t)
+	if _, _, err := Enable("https://live.example"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Reset(); err != nil {
+		t.Fatal(err)
+	}
+	if u, _ := Destination(""); u == nil || u.String() != "https://live.example" {
+		t.Fatalf("reset dropped the address: %v", u)
+	}
+}
+
 func TestEnabled(t *testing.T) {
 	isolate(t)
-	if !Enabled(false, false) {
-		t.Fatal("default is on")
+	if !Enabled(false) {
+		t.Fatal("not turned off, so usable")
 	}
-	if Enabled(false, true) {
+	if Enabled(true) {
 		t.Fatal("-no-live")
 	}
 	t.Setenv("LITMUS_LITE_LIVE", "off")
-	if Enabled(false, false) || Enabled(true, false) {
-		t.Fatal("LITMUS_LITE_LIVE=off beats everything but -no-live is not needed")
+	if Enabled(false) {
+		t.Fatal("LITMUS_LITE_LIVE=off")
 	}
 	t.Setenv("LITMUS_LITE_LIVE", "")
-	for _, ci := range []string{"true", "1", "yes"} {
-		t.Setenv("CI", ci)
-		if Enabled(false, false) {
-			t.Fatalf("CI=%s should turn it off", ci)
-		}
-		if !Enabled(true, false) {
-			t.Fatalf("-live should win over CI=%s", ci)
-		}
-	}
-	for _, ci := range []string{"", "0", "false"} {
-		t.Setenv("CI", ci)
-		if !Enabled(false, false) {
-			t.Fatalf("CI=%q should leave it on", ci)
-		}
+	// A destination in a CI job was put there on purpose.
+	t.Setenv("CI", "true")
+	if !Enabled(false) {
+		t.Fatal("CI must not switch a configured live view off")
 	}
 }
 
@@ -180,8 +237,7 @@ func TestProbe(t *testing.T) {
 		}))
 	}
 	probe := func(s *httptest.Server) error {
-		id := &Identity{}
-		base, _ := id.BaseURL(s.URL)
+		base, _ := Destination(s.URL)
 		return Probe(context.Background(), base)
 	}
 

@@ -6,14 +6,23 @@ import (
 	"os"
 	"sort"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ksatchit/litmus-lite/internal/probe"
 	"github.com/ksatchit/litmus-lite/internal/scenario"
 )
 
+// SchemaVersion is the version of the report.json format this build writes.
+// A report without the field was written before it existed and is read as
+// version 1. Later versions only add fields; a change that removes or renames
+// one is a new number, and a reader refuses a number it does not know.
+//
+//	1  no schemaVersion field
+//	2  adds schemaVersion, hypotheses[].noData and hypotheses[].allowNoData
+const SchemaVersion = 2
+
 type Result struct {
+	SchemaVersion      int                 `json:"schemaVersion,omitempty"`
 	Name               string              `json:"name"`
 	StartedAt          time.Time           `json:"startedAt"`
 	Elapsed            time.Duration       `json:"elapsed_ns"`
@@ -25,9 +34,21 @@ type Result struct {
 	Passed             bool                `json:"passed"`
 	Warnings           []string            `json:"warnings,omitempty"`
 	Load               json.RawMessage     `json:"load,omitempty"`
+	LoadGenerator      *LoadGenerator      `json:"loadGenerator,omitempty"`
 	Prometheus         []Point             `json:"prometheus,omitempty"`
 	ObservedVsInjected []KV                `json:"observedVsInjected"`
 	Recovery           time.Duration       `json:"recovery_ns"`
+}
+
+// LoadGenerator records which load-generator binary ran in a composed run:
+// with several copies of a tool on one machine, a reader can tell which one
+// produced the load series. Path is the local file and stays in report.json;
+// the event stream leaves it out (stream.BuildFinished).
+type LoadGenerator struct {
+	Tool    string `json:"tool"`
+	Version string `json:"version,omitempty"`
+	Path    string `json:"path,omitempty"`
+	Via     string `json:"via,omitempty"`
 }
 
 type KV struct {
@@ -78,9 +99,16 @@ type HypothesisVerdict struct {
 	Limit    string `json:"limit"`
 	Observed string `json:"observed"`
 	Passed   bool   `json:"passed"`
+	// NoData is set when the window the hypothesis judges had nothing to
+	// measure. Such a verdict fails unless the hypothesis sets allowNoData.
+	NoData      bool `json:"noData,omitempty"`
+	AllowNoData bool `json:"allowNoData,omitempty"`
 }
 
 func WriteJSON(path string, res *Result) error {
+	if res.SchemaVersion == 0 {
+		res.SchemaVersion = SchemaVersion
+	}
 	b, err := json.MarshalIndent(res, "", "  ")
 	if err != nil {
 		return err
@@ -96,6 +124,9 @@ func LoadJSON(path string) (*Result, error) {
 	var r Result
 	if err := json.Unmarshal(b, &r); err != nil {
 		return nil, err
+	}
+	if r.SchemaVersion > SchemaVersion {
+		return nil, fmt.Errorf("%s has schemaVersion %d; this litmus-lite reads up to %d. Upgrade litmus-lite to read it", path, r.SchemaVersion, SchemaVersion)
 	}
 	return &r, nil
 }
@@ -148,45 +179,76 @@ func Summarize(name string, from, to time.Time, samples []probe.Sample) Phase {
 	return ph
 }
 
-func HypothesisEval(h scenario.Hypothesis, inject Phase, recovery time.Duration) HypothesisVerdict {
-	v := HypothesisVerdict{Name: h.Name, Metric: h.Metric, Operator: h.Operator, Limit: h.Value}
+// RecoveryInfo is what the samples after the faults ended say about recovery.
+type RecoveryInfo struct {
+	// Time is how long after the faults ended the service was healthy again.
+	// When it never was, it is the time to the last sample.
+	Time time.Duration
+	// Recovered is true when the service was healthy again by the end of the
+	// run: three healthy samples in a row, or, when there were fewer than
+	// three samples, all of them.
+	Recovered bool
+	// Samples is the number of samples after the faults ended.
+	Samples int
+}
+
+func HypothesisEval(h scenario.Hypothesis, inject Phase, rec RecoveryInfo) HypothesisVerdict {
+	v := HypothesisVerdict{Name: h.Name, Metric: h.Metric, Operator: h.Operator, Limit: h.Value, AllowNoData: h.AllowNoData}
+	limit, err := h.Limit()
+	if err != nil {
+		// Validate refuses such a scenario, so this is only reached by a
+		// scenario built in code. It must still never pass.
+		v.Observed = "invalid limit"
+		return v
+	}
 	var observed float64
 	unit := ""
+	noData := false
 	switch h.Metric {
 	case "error_rate":
 		observed = inject.ErrorRate * 100
 		unit = "%"
+		noData = inject.Samples == 0
 	case "availability":
 		observed = inject.Availability * 100
 		unit = "%"
+		noData = inject.Samples == 0
 	case "p50":
-		observed = float64(inject.P50.Milliseconds())
+		observed = float64(inject.P50) / float64(time.Millisecond)
 		unit = "ms"
+		noData = inject.Samples == 0
 	case "p95":
-		observed = float64(inject.P95.Milliseconds())
+		observed = float64(inject.P95) / float64(time.Millisecond)
 		unit = "ms"
+		noData = inject.Samples == 0
 	case "p99":
-		observed = float64(inject.P99.Milliseconds())
+		observed = float64(inject.P99) / float64(time.Millisecond)
 		unit = "ms"
+		noData = inject.Samples == 0
 	case "rps":
 		observed = inject.RPS
+		noData = inject.Samples == 0
 	case "recovery":
-		observed = recovery.Seconds()
+		observed = rec.Time.Seconds()
 		unit = "s"
+		noData = rec.Samples == 0
+		if !noData && !rec.Recovered {
+			// The service was not healthy again by the end of the run. The
+			// time to the last sample is not a recovery time, and it must not
+			// satisfy "recovery <= 30s" just because the run was shorter.
+			v.Observed = "not recovered"
+			return v
+		}
 	}
-	limit := ParseLimit(h.Value)
+	if noData {
+		v.NoData = true
+		v.Observed = "no data"
+		v.Passed = h.AllowNoData
+		return v
+	}
 	v.Observed = FormatObs(observed, unit)
 	v.Passed = Cmp(observed, h.Operator, limit)
 	return v
-}
-
-func ParseLimit(s string) float64 {
-	n := strings.TrimSpace(s)
-	n = strings.TrimSuffix(n, "%")
-	n = strings.TrimSuffix(n, "ms")
-	n = strings.TrimSuffix(n, "s")
-	f, _ := strconv.ParseFloat(strings.TrimSpace(n), 64)
-	return f
 }
 
 func FormatObs(v float64, unit string) string {
@@ -209,33 +271,51 @@ func Cmp(observed float64, op string, limit float64) bool {
 	}
 }
 
+// RecoveryTime is Recovery(...).Time, kept for callers that only show it.
 func RecoveryTime(samples []probe.Sample, injectEnd time.Time) time.Duration {
+	return Recovery(samples, injectEnd).Time
+}
+
+// Recovery reads the samples taken at or after injectEnd, oldest first, and
+// finds when the service was healthy again (three OK samples in a row).
+func Recovery(samples []probe.Sample, injectEnd time.Time) RecoveryInfo {
+	var after []probe.Sample
+	for _, s := range samples {
+		if !s.At.Before(injectEnd) {
+			after = append(after, s)
+		}
+	}
+	sort.SliceStable(after, func(i, j int) bool { return after[i].At.Before(after[j].At) })
+	info := RecoveryInfo{Samples: len(after)}
+	if len(after) == 0 {
+		return info
+	}
 	streak := 0
 	var first time.Time
-	for _, s := range samples {
-		if s.At.Before(injectEnd) {
+	for _, s := range after {
+		if !s.OK {
+			streak = 0
 			continue
 		}
-		if s.OK {
-			streak++
-			if streak == 1 {
-				first = s.At
-			}
-			if streak >= 3 {
-				return first.Sub(injectEnd)
-			}
-		} else {
-			streak = 0
+		streak++
+		if streak == 1 {
+			first = s.At
+		}
+		if streak >= 3 {
+			info.Time = first.Sub(injectEnd)
+			info.Recovered = true
+			return info
 		}
 	}
-	if len(samples) == 0 {
-		return 0
+	// Fewer than three healthy samples in a row. With fewer than three
+	// samples in all, healthy to the end is the most that can be asked.
+	if len(after) < 3 && streak == len(after) {
+		info.Time = first.Sub(injectEnd)
+		info.Recovered = true
+		return info
 	}
-	last := samples[len(samples)-1].At
-	if last.Before(injectEnd) {
-		return 0
-	}
-	return last.Sub(injectEnd)
+	info.Time = after[len(after)-1].At.Sub(injectEnd)
+	return info
 }
 
 func BucketSeries(start time.Time, samples []probe.Sample, faults []FaultEvent, end time.Time) []Point {

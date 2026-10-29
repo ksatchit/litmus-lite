@@ -55,3 +55,15 @@ func TestRenderHTMLStructure(t *testing.T) {
 		t.Fatal("verdict words required")
 	}
 }
+
+func TestHTMLNamesTheLoadGeneratorWithoutItsPath(t *testing.T) {
+	res := &Result{Name: "n", StartedAt: time.Now(),
+		LoadGenerator: &LoadGenerator{Tool: "vegaload", Version: "0.9.0", Path: "/Users/someone/bin/vegaload"}}
+	h := RenderHTML(res)
+	if !strings.Contains(h, "load generator: vegaload 0.9.0") {
+		t.Fatal("the generator is not named")
+	}
+	if strings.Contains(h, "/Users/someone") {
+		t.Fatal("the HTML report is shared: it must not carry the local path")
+	}
+}

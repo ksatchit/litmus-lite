@@ -243,8 +243,10 @@ func TestRunStreamUnwritableFileDoesNotAffectTheRun(t *testing.T) {
 		t.Fatalf("exit %d: an unwritable stream file changed the exit code", code)
 	}
 	rep := readJSON(t, out)
+	// The scenario also has a warning of its own (its "token" param is read
+	// by nothing); the stream's is among them.
 	w, _ := rep["warnings"].([]any)
-	if len(w) == 0 || !strings.Contains(fmt.Sprint(w[0]), "stream:") {
+	if !strings.Contains(fmt.Sprint(w), "stream:") {
 		t.Fatalf("warnings %v", rep["warnings"])
 	}
 }

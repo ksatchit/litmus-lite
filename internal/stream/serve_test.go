@@ -158,7 +158,7 @@ func TestServeFollowsARunInProgress(t *testing.T) {
 		t.Fatal("the stream did not end with the run")
 	}
 	getJSON(t, base+"/v1/runs", &runs)
-	if runs[0].Status != "passed" {
+	if len(runs) != 1 || runs[0].Status != "passed" {
 		t.Fatalf("after the run %+v", runs)
 	}
 	if getJSON(t, base+"/v1/runs/live/result", nil) != 200 {
@@ -261,6 +261,9 @@ func TestServeReportsAnAbandonedRunAsIncomplete(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "crashed.ndjson")
 	fs, _ := NewFileSink(path)
+	// The "dead" process never closes its file; the test must, or Windows
+	// cannot remove the folder.
+	t.Cleanup(func() { fs.Close() })
 	rec := NewRecorder(RecorderOptions{RunID: "crashed"}, fs)
 	rec.Started(testScenario(), time.Now())
 	rec.Phase("steady")
@@ -271,7 +274,7 @@ func TestServeReportsAnAbandonedRunAsIncomplete(t *testing.T) {
 	s.Stale = 300 * time.Millisecond
 	var runs []RunSummary
 	getJSON(t, base+"/v1/runs", &runs)
-	if runs[0].Status != "running" || runs[0].Incomplete {
+	if len(runs) != 1 || runs[0].Status != "running" || runs[0].Incomplete {
 		t.Fatalf("a fresh run %+v", runs)
 	}
 	resp, _ := http.Get(base + "/v1/runs/crashed/events")
@@ -286,8 +289,8 @@ func TestServeReportsAnAbandonedRunAsIncomplete(t *testing.T) {
 		t.Fatal("the client of a dead run was never released")
 	}
 	getJSON(t, base+"/v1/runs", &runs)
-	if runs[0].Status != "errored" || !runs[0].Incomplete || runs[0].FinishedAt != nil {
-		t.Fatalf("abandoned run %+v", runs[0])
+	if len(runs) != 1 || runs[0].Status != "errored" || !runs[0].Incomplete || runs[0].FinishedAt != nil {
+		t.Fatalf("abandoned run %+v", runs)
 	}
 	req, _ := http.NewRequest("GET", base+"/v1/runs/crashed/events", nil)
 	req.Header.Set("Last-Event-ID", "3")

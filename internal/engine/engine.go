@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
+	"regexp"
+	"strings"
 	"sync"
 	"time"
 
@@ -23,6 +26,10 @@ type Options struct {
 	Emitter Emitter
 	// RunID, when set, is exported to a load generator as LITMUS_LITE_RUN_ID.
 	RunID string
+	// Warnings are problems found before the run started (a key nothing
+	// reads). They are put at the head of the result's warnings, and sent to
+	// the Emitter, so that the report and the stream's run.finished agree.
+	Warnings []string
 }
 
 // runState lets Run see which faults were armed when the run ends early.
@@ -65,8 +72,12 @@ func Run(ctx context.Context, sc *scenario.Scenario, opt Options) (*report.Resul
 }
 
 func run(ctx context.Context, sc *scenario.Scenario, opt Options, em Emitter, st *runState) (*report.Result, error) {
-	res := &report.Result{Name: sc.Metadata.Name, StartedAt: time.Now(), Passed: true}
+	res := &report.Result{SchemaVersion: report.SchemaVersion, Name: sc.Metadata.Name, StartedAt: time.Now(), Passed: true}
 	em.Started(sc, res.StartedAt)
+	for _, w := range opt.Warnings {
+		res.Warnings = append(res.Warnings, w)
+		em.Warning(w)
+	}
 	baseline, err := time.ParseDuration(sc.Baseline)
 	if err != nil {
 		return res, fmt.Errorf("baseline: %w", err)
@@ -114,10 +125,26 @@ func run(ctx context.Context, sc *scenario.Scenario, opt Options, em Emitter, st
 	for _, p := range sc.SteadyState {
 		runProbe(p)
 		mu.Lock()
-		ok := len(samples) > 0 && samples[len(samples)-1].OK
+		last := samples[len(samples)-1]
 		mu.Unlock()
-		if !ok {
-			return res, fmt.Errorf("steady-state probe %q failed", p.Name)
+		if !last.OK {
+			return res, startFailure(p, last)
+		}
+	}
+
+	// SOT probes in probes: take one sample before anything is injected, as
+	// steadyState probes do. A failing one means the system was not healthy to
+	// begin with, so the run stops here and no fault is started.
+	for _, p := range sc.Probes {
+		if p.Mode != scenario.ModeSOT {
+			continue
+		}
+		runProbe(p)
+		mu.Lock()
+		last := samples[len(samples)-1]
+		mu.Unlock()
+		if !last.OK {
+			return res, startFailure(p, last)
 		}
 	}
 
@@ -227,6 +254,11 @@ func run(ctx context.Context, sc *scenario.Scenario, opt Options, em Emitter, st
 		})
 	}
 
+	// chaosOn is closed once every fault is armed and chaosOff when the inject
+	// window ends. on-chaos probes sample between the two.
+	chaosOn := make(chan struct{})
+	chaosOff := make(chan struct{})
+
 	startProbes := func() error {
 		type job struct {
 			p        scenario.Probe
@@ -234,7 +266,7 @@ func run(ctx context.Context, sc *scenario.Scenario, opt Options, em Emitter, st
 		}
 		var jobs []job
 		for _, p := range sc.Probes {
-			if p.Mode != "continuous" && p.Mode != "on-chaos" && p.Mode != "" {
+			if p.Mode != scenario.ModeContinuous && p.Mode != scenario.ModeOnChaos && p.Mode != "" {
 				continue
 			}
 			var interval time.Duration
@@ -262,6 +294,22 @@ func run(ctx context.Context, sc *scenario.Scenario, opt Options, em Emitter, st
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
+				// off stays nil, which never fires, for a probe that runs
+				// all the time.
+				var off <-chan struct{}
+				if j.p.Mode == scenario.ModeOnChaos {
+					select {
+					case <-ctx.Done():
+						return
+					case <-stopProbes:
+						return
+					case <-chaosOn:
+					}
+					off = chaosOff
+					// The window can be shorter than the interval: sample at
+					// once so that it is never empty.
+					runProbe(j.p)
+				}
 				t := time.NewTicker(j.interval)
 				defer t.Stop()
 				for {
@@ -270,7 +318,17 @@ func run(ctx context.Context, sc *scenario.Scenario, opt Options, em Emitter, st
 						return
 					case <-stopProbes:
 						return
+					case <-off:
+						return
 					case <-t.C:
+						// A tick and the end of the window can be ready
+						// together, and select then picks either: never
+						// sample after the window has closed.
+						select {
+						case <-off:
+							return
+						default:
+						}
 						runProbe(j.p)
 					}
 				}
@@ -338,6 +396,9 @@ func run(ctx context.Context, sc *scenario.Scenario, opt Options, em Emitter, st
 			if len(out.Raw) > 0 {
 				res.Load = out.Raw
 			}
+			if out.Generator != nil {
+				res.LoadGenerator = out.Generator
+			}
 			if len(out.Series) > 0 {
 				loadSeries = out.Series
 			}
@@ -387,6 +448,8 @@ func run(ctx context.Context, sc *scenario.Scenario, opt Options, em Emitter, st
 		}
 	}
 
+	close(chaosOn)
+
 	if !loadAtBaseline {
 		startLoad()
 	}
@@ -403,8 +466,19 @@ func run(ctx context.Context, sc *scenario.Scenario, opt Options, em Emitter, st
 	}
 
 	injectEnd := time.Now()
+	close(chaosOff)
 	em.Phase("recover")
 	for i, r := range running {
+		// A fault that sits in the path of requests and saw none changed
+		// nothing: say so, because every hypothesis was then judged on a
+		// service that was not disturbed.
+		if c, ok := r.(faults.TrafficCounter); ok && c.Requests() == 0 {
+			msg := noTrafficWarning(events[i])
+			mu.Lock()
+			res.Warnings = append(res.Warnings, msg)
+			mu.Unlock()
+			em.Warning(msg)
+		}
 		if a, ok := r.(faults.Armable); ok {
 			a.Disarm()
 			events[i].End = injectEnd
@@ -431,8 +505,8 @@ func run(ctx context.Context, sc *scenario.Scenario, opt Options, em Emitter, st
 	haltProbes()
 	loadWG.Wait()
 
-	for _, p := range append(sc.SteadyState, sc.Probes...) {
-		if p.Mode == "EOT" {
+	for _, p := range append(append([]scenario.Probe(nil), sc.SteadyState...), sc.Probes...) {
+		if p.Mode == scenario.ModeEOT {
 			runProbe(p)
 		}
 	}
@@ -447,7 +521,8 @@ func run(ctx context.Context, sc *scenario.Scenario, opt Options, em Emitter, st
 	phInject := report.Summarize("inject", injectStart, injectEnd, res.Probes)
 	phRec := report.Summarize("recover", injectEnd, recoverEnd, res.Probes)
 	res.Phases = []report.Phase{phSteady, phInject, phRec}
-	res.Recovery = report.RecoveryTime(res.Probes, injectEnd)
+	rec := report.Recovery(res.Probes, injectEnd)
+	res.Recovery = rec.Time
 	res.TimeSeries = report.BucketSeries(res.StartedAt, res.Probes, events, recoverEnd)
 	// The buckets that were not closed when the ticker stopped. They are
 	// emitted before the load series is merged, so every live point is
@@ -470,7 +545,7 @@ func run(ctx context.Context, sc *scenario.Scenario, opt Options, em Emitter, st
 	res.ObservedVsInjected = report.ObservedVsInjected(events, phInject)
 
 	for _, h := range sc.Hypotheses {
-		v := report.HypothesisEval(h, phInject, res.Recovery)
+		v := report.HypothesisEval(h, phInject, rec)
 		res.Hypotheses = append(res.Hypotheses, v)
 		if !v.Passed {
 			res.Passed = false
@@ -487,4 +562,80 @@ func run(ctx context.Context, sc *scenario.Scenario, opt Options, em Emitter, st
 		}
 	}
 	return res, nil
+}
+
+// clientErrPrefix is how net/http starts an error: `Get "URL": `. The URL is
+// shown without its credentials and query by startFailure, so the one in the
+// error text is dropped.
+var clientErrPrefix = regexp.MustCompile(`^[A-Za-z]+ "[^"]*": `)
+
+// maxFailureText is how much of a probe's error the failure message carries.
+const maxFailureText = 240
+
+// startFailure is the error of a probe that failed before anything was
+// injected. It says where the probe looked and why it failed, because that is
+// the first failure a new user meets: a service that is not running, or a
+// probe that points at the wrong address. A command probe's command is not
+// repeated (it can hold a secret); its own output is the reason.
+func startFailure(p scenario.Probe, s probe.Sample) error {
+	msg := fmt.Sprintf("steady-state probe %q failed", p.Name)
+	switch strings.ToLower(p.Type) {
+	case "cmd", "command":
+	default:
+		method := p.Method
+		if method == "" {
+			method = "GET"
+		}
+		msg += fmt.Sprintf(" (%s %s)", method, bareURL(p.URL))
+	}
+	if reason := firstLine(clientErrPrefix.ReplaceAllString(s.Error, "")); reason != "" {
+		msg += ": " + reason
+	}
+	if refused(s.Error) {
+		msg += ". Is the service running, and is the address right?"
+	}
+	return errors.New(msg)
+}
+
+func firstLine(s string) string {
+	s = strings.TrimSpace(s)
+	if i := strings.IndexAny(s, "\r\n"); i >= 0 {
+		s = s[:i]
+	}
+	if r := []rune(s); len(r) > maxFailureText {
+		s = string(r[:maxFailureText]) + "..."
+	}
+	return s
+}
+
+// bareURL is u without credentials or query, which can hold a token. The
+// message ends up on stderr, in a stream event and in a CI log.
+func bareURL(u string) string {
+	parsed, err := url.Parse(u)
+	if err != nil || parsed.Host == "" {
+		return "(unreadable URL)"
+	}
+	parsed.User = nil
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String()
+}
+
+// noTrafficWarning is the warning for a proxy fault that no request went
+// through while it was armed.
+func noTrafficWarning(e report.FaultEvent) string {
+	listen, _ := e.Tunables["listen"].(string)
+	where := "its listen address"
+	if listen != "" {
+		where = listen
+	}
+	return fmt.Sprintf("fault %q (%s) saw no requests while it was armed: nothing went through %s, so it changed nothing and the hypotheses were judged on an undisturbed service. "+
+		"Point the probes, the load generator or your client at that address, not at the upstream", e.Name, e.Kind, where)
+}
+
+// refused reports whether a probe's error is a connection nothing accepted:
+// "connection refused" on Linux and macOS, and on Windows "connectex: No
+// connection could be made because the target machine actively refused it."
+func refused(msg string) bool {
+	return strings.Contains(msg, "connection refused") || strings.Contains(msg, "actively refused")
 }

@@ -1,10 +1,10 @@
 # Streaming a run
 
-Status: S0, S1, S2 and S3 are built. `litmus-lite run` can write its events to a file (`-stream-file`), push them to an ingest URL (`-stream-push`) and serve them as SSE while it runs (`-stream-pull`), with `-run-id`, `-label`, `-stream-samples` and `-stream-scenario`. `litmus-lite stream receive` is a reference ingest endpoint, `doctor -stream` checks a destination, and `run_test` over MCP takes the same arguments. You can also convert a finished report into an event stream, validate recordings, and serve recordings over HTTP. `litmus-lite serve` is a standing, read-only data source over a directory of run files (it follows a run in progress), and `stream replay` can push a recording to an ingest URL. Each section below says which phase it belongs to when that is not S0, S1, S2 or S3. **Event format v1 is frozen** as of the end of S2 (see "Compatibility"); one consumer (rt-bridge) has run against it by push and by pull, from real runs.
+Status: S0, S1, S2 and S3 are built. `litmus-lite run` can write its events to a file (`-stream-file`), push them to an ingest URL (`-stream-push`) and serve them as SSE while it runs (`-stream-pull`), with `-run-id`, `-label`, `-stream-samples` and `-stream-scenario`. `litmus-lite stream receive` is a reference ingest endpoint, `doctor -stream` checks a destination, and `run_test` over MCP takes the same arguments. You can also convert a finished report into an event stream, validate recordings, and serve recordings over HTTP. `litmus-lite serve` is a standing, read-only data source over a directory of run files (it follows a run in progress), and `stream replay` can push a recording to an ingest URL. Each section below says which phase it belongs to when that is not S0, S1, S2 or S3. **Event format v1 is frozen** as of the end of S2 (see "Compatibility"); one consumer has run against it by push and by pull, from real runs.
 
-**Live view (default for `run`).** With no `-stream-*` flag, `litmus-lite run` also shows the run in your browser: it pushes the events to a live-view service and opens the page for the run. See "Live view" below, including what leaves your machine and how to turn it off (`-no-live`, `LITMUS_LITE_LIVE=off`, or `CI` set).
+**Live view (optional, off until you configure it).** If you point `litmus-lite run` at a live-view service (`-live-url`, `LITMUS_LITE_LIVE_URL`, or `litmus-lite live enable URL`), it also pushes the events there and opens the page for the run in your browser. With none of those, nothing is sent, no browser is opened and no file is written. See "Live view" below, including what leaves your machine.
 
-Litmus-lite can emit the events of a chaos run as it happens, so an application can show a run live, replay it, or collect it. Streaming is **additive**: `report.json`, `report.html`, JUnit output, stdout and exit codes are the same with or without it. Apart from the live view above, nothing is sent anywhere unless you pass a streaming flag.
+Litmus-lite can emit the events of a chaos run as it happens, so an application can show a run live, replay it, or collect it. Streaming is **additive**: `report.json`, `report.html`, JUnit output, stdout and exit codes are the same with or without it. Nothing is sent anywhere unless you pass a streaming flag or configure a live-view service.
 
 Litmus-lite is a data source. It does not know about, or depend on, any particular dashboard. An application consumes one documented event format and chooses how the events reach it.
 
@@ -15,8 +15,8 @@ Litmus-lite is a data source. It does not know about, or depend on, any particul
 | Keep a machine-readable record of a run (CI artifact, replay, tests) | `-stream-file` |
 | Let an application connect to litmus-lite and watch | `-stream-pull` (during a run) or `litmus-lite serve` (any time) |
 | Have litmus-lite send events to an application that exposes an ingest endpoint | `-stream-push` |
-| Show an old run, or demo without running chaos | `litmus-lite stream from-report` and `litmus-lite stream replay` |
-| Watch a run in your browser with no setup | Nothing: the live view is on by default for `run` |
+| Show an old run, or work without running chaos | `litmus-lite stream from-report` and `litmus-lite stream replay` |
+| Watch a run in your browser | A live-view service, configured once: `litmus-lite live enable URL` (see "Live view") |
 
 You can combine them. All sinks of a run receive the same events with the same sequence numbers.
 
@@ -132,16 +132,24 @@ The engine never waits on a sink. Each sink has its own bounded queue and writer
 
 ## Live view
 
-`litmus-lite run FILE` shows the run in your browser with no setup. It is on by default, because the point is to see the run in a good UI before anything else is configured.
+The live view shows a run in your browser as it happens. It is a normal opt-in feature of `run`: **until you configure a live-view service it does nothing at all.** No request is made, no browser is opened, no identity file is written and `run` does not even mention it.
 
-What happens on a run:
+A service is configured in one of three ways, strongest first:
+
+1. `-live-url URL` on a `run`.
+2. `LITMUS_LITE_LIVE_URL` in the environment. For an editor's MCP server, `litmus-lite init -env LITMUS_LITE_LIVE_URL=URL` writes it into the server entry.
+3. `litmus-lite live enable URL`, which keeps the address in `live.json` for later runs. `litmus-lite live disable` forgets it.
+
+The service is any program that implements "What the service must do" below; litmus-lite does not ship one and has no default address.
+
+What happens on a run once a service is configured:
 
 1. litmus-lite reads `live.json` from your config directory (`$LITMUS_LITE_CONFIG_DIR`, or `litmus-lite/` under the OS user config directory). The first time there is none, so it **makes one**: a random project id (`p-` and 26 characters, 128 bits) and a random push token. The file is mode 0600.
-2. It asks the live-view service whether it is there (`GET /v1/health`, 1.5 s at most, no redirects).
+2. It asks the service whether it is there (`GET /v1/health`, 1.5 s at most, no redirects).
 3. It pushes the run to `<service>/v1/projects/<project id>/ingest` with the token as a bearer token. The service **creates the project when it first sees the id**, so nobody has to visit the service first or copy anything back.
-4. It prints `live view: <service>/p/<project id>` on stderr and **opens that page in the default browser**, on every run. The page shows the latest run of the project and moves to the next run by itself.
+4. It prints `live view: <service>/p/<project id>` on stderr and **opens that page in the default browser** (not when `CI` is set, `-no-open` or `LITMUS_LITE_OPEN=off` is used, or there is no display on Linux). The page shows the latest run of the project and moves to the next run by itself.
 
-**One project for chaos and load.** litmus-lite and vegaload keep separate identities by default, so a stand-alone load run and a stand-alone chaos run land in two projects. To put both in one, point both at one folder (their `live.json` files are the same format): `litmus-lite init -editor cursor -live-dir DIR` and `vegaload init -editor cursor -live-dir DIR` write `LITMUS_LITE_CONFIG_DIR` / `VEGALOAD_CONFIG_DIR` into each MCP server entry. Runs started from the editor then share a project; runs from a terminal still use the default folder unless that variable is exported there too. Re-running `init` without `-live-dir` keeps what is already in the entry.
+**One project for several tools.** Two tools that keep a `live.json` of this format (the file is just `projectId`, `pushToken` and an optional `base`) share a project when they read the same folder. `litmus-lite init -env LITMUS_LITE_CONFIG_DIR=DIR` (and the other tool's equivalent) writes that folder into each MCP server entry; the directory is made absolute, because an editor starts the server from a directory of its own. Runs started from the editor then share a project; runs from a terminal use the default folder unless that variable is exported there too. Re-running `init` without `-env` keeps what is already in the entry, and `-env KEY=` removes a variable. `init` refuses a variable whose name looks like a credential (`token`, `secret`, `password`, `api_key`) and a URL with a password in it: the MCP file is written into your project and is often committed.
 
 Two values, two jobs: the project id is in the page URL, so whoever has the URL can read the project's runs. The push token never appears in a URL; the service keeps its hash from the first push and requires it for every later push, so knowing the URL is not enough to add runs to someone else's project.
 
@@ -149,51 +157,49 @@ Two values, two jobs: the project id is in the page URL, so whoever has the URL 
 
 | Situation | Live view |
 | --- | --- |
-| `run` with no `-stream-*` flag or variable | on |
+| no `-live-url`, no `LITMUS_LITE_LIVE_URL`, nothing kept by `live enable` | **off: nothing is sent, opened or written** |
+| a service is configured | on |
 | `-no-live`, or `LITMUS_LITE_LIVE=off` | off |
-| `CI` set (any value except empty, `0`, `false`) | off |
 | any `-stream-file`, `-stream-push` or `-stream-pull` (flag or variable) | off: you chose where the run goes |
-| `-live` | on, even with the cases above (except `LITMUS_LITE_LIVE=off`) |
-| `-no-open`, `LITMUS_LITE_OPEN=off`, `CI` set, or no display on Linux | on, but the browser is not opened |
+| `-live` (with a service configured) | on, in addition to the destinations you chose |
+| `-live` with no service configured | refused, exit 2 |
+| `CI` set | on if configured (a destination in a CI job was put there on purpose), but the browser is never opened |
+| `-no-open`, `LITMUS_LITE_OPEN=off`, or no display on Linux | on, but the browser is not opened |
 
-Commands other than `run` never use it. MCP `run_test` does not use it either; it has the explicit `stream_*` arguments only.
+Commands other than `run` never send anything to it. MCP `run_test` follows the same rules as the CLI (it execs it), with the `live`, `no-live` and `no-open` arguments.
 
-If the service cannot be reached, answers something that is not a live-view service, or is an older version without projects, the run goes on without it and says so on stderr. A bad `-live-url` (credentials, a query, a non-https remote) is refused the same way. Nothing here changes a run's result, reports or exit code.
-
-The service is `http://127.0.0.1:7080` (an rt-bridge on your machine) until a hosted address replaces it. Change it with `-live-url`, `LITMUS_LITE_LIVE_URL`, or `"base"` in `live.json`. A non-loopback `http://` address is refused.
+If the service cannot be reached, answers something that is not a live-view service, or is an older version without projects, the run goes on without it and says so on stderr. A bad address (credentials, a query, a non-https remote) is refused the same way. Nothing here changes a run's result, reports or exit code. A non-loopback `http://` address is refused.
 
 ### What leaves your machine
 
-The same events as any push (see "Event format"): the scenario name, the target and probe URLs and names, fault kinds and names, labels, and the results. Credentials in fault parameters are masked as always, and the scenario YAML is not included unless you also pass `-stream-scenario`. **Only the service you named or the default receives it**; the audit log records `live:HOST` and nothing else. The push token and the project id are never written to a report, an event or the audit log.
-
-Be aware: because the live view is on by default, a first run on a machine sends the run to the default service **without a prompt**. That was a deliberate choice, with the opt-outs above and this section as the disclosure. litmus-lite prints one line on stderr on every run that says where the page is and how to turn it off.
+Nothing, unless you configured a service. Then: the same events as any push (see "Event format"): the scenario name, the target and probe URLs and names, fault kinds and names, labels, and the results. Credentials in fault parameters are masked as always, and the scenario YAML is not included unless you also pass `-stream-scenario`. **Only the service you named receives it**; the audit log records `live:HOST` and nothing else. The push token and the project id are never written to a report, an event or the audit log. litmus-lite prints one line on stderr on every run that uses it, saying where the page is and how to turn it off.
 
 ### `litmus-lite live`
 
 ```
+litmus-lite live enable URL # keep URL as the live-view service of this machine
+litmus-lite live disable    # forget it (the identity stays)
 litmus-lite live            # print the project page URL, and where the identity is kept
 litmus-lite live -open      # also open it
 litmus-lite live reset      # start a new project; runs of the old one stay under the old URL
 ```
 
+With no service configured, `live`, `live -open` and `live reset` say so and exit 1 without making any file.
+
 ### What the service must do
 
-For anyone implementing the other side (rt-bridge does):
+For anyone implementing the other side:
 
 - `GET /v1/health` answers `200 {"status":"ok","projects":true}`.
 - `POST /v1/projects/{id}/ingest` takes the NDJSON batches described in "What an ingest endpoint must do", with `Authorization: Bearer <push token>`. An id that is new, with a token of at least 16 characters, creates the project and pins that token. An existing project needs the same token (`401` otherwise, also for a missing token, so a response does not say whether a project exists). Ids must be 16 to 64 characters of `a-z 0-9 -`.
 - The page is `GET /p/{id}`.
 
-### Decisions to revisit
+### Design notes
 
-Recorded on 2026-10-15; each is a choice made for the demo that should be looked at again before a hosted service is the default:
-
-1. **No consent prompt.** The live view is on by default with no first-run question. A prompt (or opt-in) is the alternative if the default service becomes a hosted one, because a run's target URLs and labels then leave the machine.
-2. **The browser opens on every run.** This keeps demos simple. When the product is live, open it on the first run of a project only, or only when no viewer is connected (the service could report that in the response to a push).
-3. **Run retention is a count.** The bridge keeps the newest 50 runs per project and purges the oldest finished one (`-project-runs`). An old link to a purged run answers `410` with `"code":"purged"` and the page says so. Not built: a size limit, an age limit, deleting a project, and telling a user how long runs are kept.
-4. **Anonymous projects are unbounded in time.** A bridge refuses new projects past `-max-projects` (default 1000) with `429`. There is no expiry of a project nobody uses.
-5. **Attaching a project to an account** (the onboarding step) needs its own handoff. The project id is a read credential and is deliberately not put in the sign-up link.
-6. **MCP runs use the live view too.** `run_test` follows the CLI default (the page opens), with `no-live` and `no-open` to turn it off. This was chosen so a demo from an agent shows the page; the alternative is an agent that opens pages only when asked (`live` as an opt-in argument). Look at it again with decision 1 and 2: an agent can start many runs, and each one opens a tab.
+1. **Opt-in.** The live view was first on by default; it is now dormant until a service is configured, because a run's target URLs and labels leave the machine when it is on. There is no built-in address.
+2. **The browser opens on every run** once a service is configured. A later refinement is to open it on the first run of a project only, or only when no viewer is connected (the service could report that in the response to a push).
+3. **Run retention is the service's business.** A service should say how many runs it keeps and answer `410` with `"code":"purged"` for a purged run.
+4. **MCP runs follow the CLI.** `run_test` opens the page when a service is configured, so an agent that starts many runs opens many tabs; it passes `no-open` or `no-live` to avoid that.
 
 ## Flags
 
@@ -212,10 +218,10 @@ All flags belong to `run` and are optional. Each has an environment variable so 
 | `-stream-samples` | | Also emit every probe sample (off by default; high volume) (S1) |
 | `-stream-scenario` | | Include the scenario YAML in `run.started`, redacted (off by default) (S2) |
 | | `LITMUS_LITE_STREAM_TOKEN` | Bearer token for push and for a non-loopback pull or `serve` |
-| `-live` | | Use the live view even when `CI` is set or another destination is chosen |
-| `-no-live` | `LITMUS_LITE_LIVE=off` | Do not use the live view |
+| `-live` | | Also use the live view when another destination is chosen (needs a service configured) |
+| `-no-live` | `LITMUS_LITE_LIVE=off` | Do not use the live view, even if one is configured |
 | `-no-open` | `LITMUS_LITE_OPEN=off` | Use the live view but do not open the browser |
-| `-live-url URL` | `LITMUS_LITE_LIVE_URL` | The live-view service (default `http://127.0.0.1:7080`) |
+| `-live-url URL` | `LITMUS_LITE_LIVE_URL` | The live-view service. Setting it is what turns the live view on; there is no default |
 | | `LITMUS_LITE_CONFIG_DIR` | Where `live.json` is kept |
 
 Destinations are never read from the scenario file. A checked-in `*.chaos.yaml` cannot send data anywhere.
@@ -255,7 +261,7 @@ Every event is a JSON object:
 | `load.point` | `offsetS` (run clock, like `point.offsetS`), `rps`, `errorRate`, optional `p50Ms`, `p95Ms`, `p99Ms`, `requests`, `failed` | Generator progress, about once a second, when the tool can report it. Today only vegaload does |
 | `load.finished` | `series[]` (`offsetS`, `rps`, `errorRate`, on the run clock; can be empty), `error` only on failure | Generator exited |
 | `warning` | `message` | Anything that goes to `res.Warnings`, including dropped events |
-| `run.finished` | The `report.json` content plus `diagnosis` (the `diagnose` text). Raw `probes` only with `-stream-samples`. Credentials in `faultLog` tunables are redacted. | Last event of a run that completed |
+| `run.finished` | The `report.json` content plus `diagnosis` (the `diagnose` text). Raw `probes` only with `-stream-samples`. Credentials in `faultLog` tunables are redacted. A composed run adds an optional `loadGenerator` (`tool`, `version`, `via`): which generator binary ran. Its local `path` is in `report.json` only, never in the stream. | Last event of a run that completed |
 | `run.failed` | `reason` (for example a failed steady-state probe, or `interrupted`), partial result if any | Last event of a run that did not complete |
 
 Every stream ends with exactly one of `run.finished` or `run.failed`, including on Ctrl-C.
@@ -272,7 +278,7 @@ Every stream ends with exactly one of `run.finished` or `run.failed`, including 
 The two usual shapes:
 
 - **Composed.** The scenario has a `load:` block and litmus-lite starts the generator. One stream carries the chaos events and, when the tool allows, `load.*` events.
-- **Independent.** The load generator and litmus-lite are started separately, for example by two terminals in a demo. Each produces its own stream.
+- **Independent.** The load generator and litmus-lite are started separately, for example from two terminals. Each produces its own stream.
 
 To let an application join independent streams, give both the same identifier:
 
@@ -281,7 +287,7 @@ litmus-lite run checkout.chaos.yaml -run-id demo-42 -stream-pull 127.0.0.1:7070
 vegaload run checkout.vl.js -run-id demo-42 ...      # when the generator supports it
 ```
 
-When litmus-lite streams a composed run with vegaload, it starts vegaload with `-stream-file` and `-no-open`, reads the per-second points as vegaload writes them and re-emits them as `load.point` in its own stream, so the whole run is one stream with one `runId`. It also sets `VEGALOAD_LIVE=off` for the generator in every composed run, streamed or not: litmus-lite owns the view, and the generator must not open its own page or push a second run. A vegaload without `-stream-file` still runs; its points arrive in `load.finished` at the end, with a warning. The `k6` and `command` tools emit `load.started` and `load.finished` only.
+When litmus-lite streams a composed run with vegaload, it starts vegaload with `-stream-file` and `-no-open`, reads the per-second points as vegaload writes them and re-emits them as `load.point` in its own stream, so the whole run is one stream with one `runId`. It also sets `VEGALOAD_LIVE=off` for the generator in every composed run, streamed or not: litmus-lite owns the view, and the generator must not open its own page or push a second run. Whether vegaload can write a stream file is read from its `run -h` before it starts, so every run takes one path: `-no-open` and a temporary `-report` are always passed, `-stream-file` only when listed. A vegaload without `-stream-file` still runs; its points arrive in `load.finished` at the end, with one warning that names the copy. The `k6` and `command` tools emit `load.started` and `load.finished` only.
 
 Litmus-lite also exports `LITMUS_LITE_RUN_ID` to a generator it starts (and `VEGALOAD_RUN_ID` to vegaload). A consumer joins on `runId` when present, otherwise on a shared label plus overlapping `ts` ranges. Any generator can contribute by emitting `load.point` and `load.finished` events in this format.
 
@@ -300,7 +306,7 @@ The default stays `inject`, so existing scenarios behave as before. With `baseli
 
 ## Safety and privacy
 
-- Apart from the live view (see "Live view"), streaming is off unless you pass a flag or set a variable, and nothing is sent anywhere on its own. The live view is on by default for `run`, goes only to the live-view service, and is turned off by `-no-live`, `LITMUS_LITE_LIVE=off`, `CI`, or by choosing a destination yourself.
+- Streaming is off unless you pass a flag, set a variable or configure a live-view service (see "Live view"), and nothing is sent anywhere on its own. A configured live view goes only to that service, and is turned off for a run by `-no-live`, `LITMUS_LITE_LIVE=off`, or by choosing a destination yourself.
 - Fault `tunables` are redacted before they are emitted. Keys that match `token`, `secret`, `password` or `key` (case-insensitive) become `"***"`. The failpoint `token` is one example.
 - Response bodies, request headers and probe command output are never streamed.
 - `-stream-scenario` adds the scenario YAML to `run.started` for consumers that want to show it. It is redacted on a best-effort basis: fault parameters (as above), credentials in URLs (user info and query keys such as `token`, `api_key`, `password`), the values after secret-looking flags in load arguments, and `name=value` pairs in command text. Redacting free text cannot be complete, so it is off by default. Do not put a secret in a scenario and rely on this.
@@ -401,7 +407,7 @@ A URL is checked by POSTing an empty batch with `X-Litmus-Lite-Doctor: 1` and th
 
 ### From an agent (MCP)
 
-`run_test` follows the same default as the CLI: with no `stream_*` argument it uses the live view, so a run started from an agent also opens the page for the run. It forwards three arguments for this: `live` (`-live`), `no-live` (`-no-live`) and `no-open` (`-no-open`: push to the live view, but do not open a browser). An agent that must not open pages passes `no-live` or `no-open`.
+`run_test` follows the same rules as the CLI: with no `stream_*` argument and a live-view service configured (for example `litmus-lite init -env LITMUS_LITE_LIVE_URL=URL` wrote it into the server's environment), it uses the live view, so a run started from an agent also opens the page for the run. With no service configured it does nothing extra. It forwards three arguments for this: `live` (`-live`), `no-live` (`-no-live`) and `no-open` (`-no-open`: push to the live view, but do not open a browser). An agent that must not open pages passes `no-live` or `no-open`.
 
 The tool result keeps stdout and stderr apart. The first text item is the run's JSON, as before. The second text item, present only when the run wrote anything to stderr, holds those notes, among them the line `live view: URL`. An agent should tell the user that URL. The host rule that `litmus-lite hosts` writes says so. A failed run reports both streams in the error text.
 
@@ -419,8 +425,8 @@ Event format `litmus-lite.io/stream/v1` is frozen at the end of S2. Inside `v1`:
 
 - Starting, stopping or scheduling runs over the stream or `serve`. Use the CLI, or MCP, which calls the CLI.
 - Storing runs beyond the NDJSON files you choose to keep.
-- A hosted service, accounts or a control plane. The live-view service (rt-bridge) is a separate program.
-- Telemetry. litmus-lite collects nothing about how it is used. The live view sends a run's events to the live-view service, as described above; that is the run, not usage data.
+- A hosted service, accounts or a control plane. A live-view service is a separate program.
+- Telemetry. litmus-lite collects nothing about how it is used and sends nothing by default. A live-view service you configure gets a run's events, as described above; that is the run, not usage data.
 
 ## Using it from an application
 
@@ -460,6 +466,6 @@ Delivered in order. Each phase leaves the tool fully working without any streami
 | S1 (done) | Engine emitter, live `point` events, `-stream-file`, `-run-id`, `-label`, `-stream-samples`, `run.failed`, `load.start: baseline` |
 | S2 (done) | `-stream-push`, `-stream-pull`, queueing and backpressure, redaction (including `-stream-scenario`), token and TLS rules, MCP arguments, `doctor -stream`, `stream receive`. Schema v1 frozen |
 | S3 (done) | `litmus-lite serve` over a directory (follows a run in progress), `stream replay` through push |
-| Live view (done) | Default live view for `run`: `internal/live`, `live.json` identity, project push, `-live`, `-no-live`, `-no-open`, `-live-url`, `litmus-lite live`. Built after S3, before S4, for the end-to-end demo |
+| Live view (done) | Optional live view for `run`, dormant until a service is configured: `internal/live`, `live.json` identity, project push, `-live`, `-no-live`, `-no-open`, `-live-url`, `litmus-lite live enable\|disable\|reset`, `init -env`. Built after S3, before S4 |
 | S4 | `LITMUS_LITE_RUN_ID` to generators, live `load.*` events |
 | S5 | Compatibility policy, CI example that uploads the NDJSON file |

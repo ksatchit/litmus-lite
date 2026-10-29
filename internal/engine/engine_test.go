@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -282,12 +283,20 @@ func TestFailpointArmsDuringInject(t *testing.T) {
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 	})
+	// What the server answered, and when, so that a failure in the steady
+	// phase can be told from a probe that never reached the server.
+	var seenMu sync.Mutex
+	var seen []string
+	started := time.Now()
 	mux.HandleFunc("/charge", func(w http.ResponseWriter, r *http.Request) {
+		code := 200
 		if err := failpoint.Fail("charge"); err != nil {
-			http.Error(w, err.Error(), http.StatusServiceUnavailable)
-			return
+			code = http.StatusServiceUnavailable
 		}
-		w.WriteHeader(200)
+		seenMu.Lock()
+		seen = append(seen, fmt.Sprintf("%dms:%d", time.Since(started).Milliseconds(), code))
+		seenMu.Unlock()
+		w.WriteHeader(code)
 	})
 	mux.Handle("/_litmus/failpoint", failpoint.Handler())
 	srv := httptest.NewServer(mux)
@@ -297,7 +306,11 @@ func TestFailpointArmsDuringInject(t *testing.T) {
 apiVersion: litmus-lite.io/v1
 kind: Scenario
 metadata: { name: cashier-charge }
-baseline: 400ms
+# The probe interval is 80ms, so a baseline of 360ms ends 40ms from the
+# nearest probe. A multiple of 80ms would put a probe on the boundary where
+# the hook is armed, and CI showed that probe seeing the fault (503) while it
+# still belongs to the steady phase.
+baseline: 360ms
 recover: 800ms
 steadyState:
   - name: healthz
@@ -354,7 +367,9 @@ hypotheses:
 		}
 	}
 	if steady.Samples == 0 || steady.ErrorRate > 0 {
-		t.Fatalf("steady %+v", steady)
+		seenMu.Lock()
+		defer seenMu.Unlock()
+		t.Fatalf("steady %+v\nthe server saw /charge at: %v", steady, seen)
 	}
 	if inject.ErrorRate < 0.5 {
 		t.Fatalf("inject %+v", inject)
@@ -369,8 +384,8 @@ hypotheses:
 
 func TestHypothesisFail(t *testing.T) {
 	h := scenario.Hypothesis{Name: "e", Metric: "error_rate", Operator: "<", Value: "1%"}
-	ph := report.Phase{ErrorRate: 0.5}
-	v := report.HypothesisEval(h, ph, 0)
+	ph := report.Phase{Samples: 10, Failed: 5, ErrorRate: 0.5}
+	v := report.HypothesisEval(h, ph, report.RecoveryInfo{})
 	if v.Passed {
 		t.Fatal("should fail")
 	}

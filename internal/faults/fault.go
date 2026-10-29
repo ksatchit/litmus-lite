@@ -10,13 +10,15 @@ import (
 
 // Injector is one fault kind. Start must be reversible by Stop.
 //
-// TODO(strictness): Validate currently checks only the params an injector cares
-// about and ignores unknown keys, so a typo such as "dealy" silently does
-// nothing. Planned: each injector declares a parameter schema (name, type,
-// required, default, range) that validate/run check generically. For EXISTING
-// kinds an unknown key stays a WARNING for now; when it becomes an error is
+// An injector also implements ParamDeclarer (lint.go), so that a param it does
+// not read, such as the typo "dealy", is reported by validate and run and is an
+// error under -strict.
+//
+// TODO(strictness): the declaration is a list of names. Planned: a schema (type,
+// required, default, range) that validate/run check generically (spec FR-XC-01).
+// For EXISTING kinds an unknown key is a WARNING; when it becomes an error is
 // deliberately undecided and will be revisited. NEW kinds should reject unknown
-// keys from day one. Keep this note in sync with the spec's FR-XC-01/FR-XC-02.
+// keys from day one.
 type Injector interface {
 	Name() string
 	OS() []string // empty means all

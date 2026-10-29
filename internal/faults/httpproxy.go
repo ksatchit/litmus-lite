@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -22,6 +23,16 @@ func (httpProxy) Name() string     { return "http.latency" }
 func (httpProxy) OS() []string     { return nil }
 func (httpProxy) EarlyStart() bool { return true }
 
+// httpParamKeys are the params all three http kinds read.
+var httpParamKeys = []string{
+	"listen", "upstream", "delay", "jitter", "timeout", "percent", "code",
+	"statusOverride", "statusOverride.percent", "statusOverride.code",
+}
+
+func (httpProxy) ParamKeys() []string    { return httpParamKeys }
+func (statusInject) ParamKeys() []string { return httpParamKeys }
+func (httpTimeout) ParamKeys() []string  { return httpParamKeys }
+
 func (httpProxy) Validate(f scenario.Fault) error {
 	if scenario.StringParam(f.Params, "listen") == "" {
 		return fmt.Errorf("%s: params.listen is required", f.Kind)
@@ -29,7 +40,65 @@ func (httpProxy) Validate(f scenario.Fault) error {
 	if scenario.StringParam(f.Params, "upstream") == "" {
 		return fmt.Errorf("%s: params.upstream is required", f.Kind)
 	}
+	// A value that does not parse used to become 0 and inject nothing, so a
+	// run with "delay: 800" (no unit) passed having injected no delay.
+	for _, k := range []string{"delay", "jitter", "timeout"} {
+		raw := strings.TrimSpace(scenario.StringParam(f.Params, k))
+		if raw == "" {
+			continue
+		}
+		d, err := time.ParseDuration(raw)
+		if err != nil {
+			return fmt.Errorf("%s: params.%s %q is not a duration (write a unit, for example 800ms or 2s)", f.Kind, k, raw)
+		}
+		if d < 0 {
+			return fmt.Errorf("%s: params.%s %q must not be negative", f.Kind, k, raw)
+		}
+	}
+	check := func(where string, params map[string]any) error {
+		if params == nil {
+			return nil
+		}
+		if v, ok := params["percent"]; ok && !isNumber(v) {
+			return fmt.Errorf("%s: %s.percent %v must be a number from 0 to 100", f.Kind, where, v)
+		}
+		if p := scenario.FloatParam(params, "percent", 0); p < 0 || p > 100 {
+			return fmt.Errorf("%s: %s.percent %v must be from 0 to 100", f.Kind, where, p)
+		}
+		if v, ok := params["code"]; ok && !isNumber(v) {
+			return fmt.Errorf("%s: %s.code %v must be an HTTP status code", f.Kind, where, v)
+		}
+		if c, ok := params["code"]; ok {
+			if n := scenario.IntParam(params, "code", 0); n < 100 || n > 599 {
+				return fmt.Errorf("%s: %s.code %v must be an HTTP status code from 100 to 599", f.Kind, where, c)
+			}
+		}
+		return nil
+	}
+	if err := check("params", f.Params); err != nil {
+		return err
+	}
+	if raw, ok := f.Params["statusOverride"]; ok {
+		m, isMap := raw.(map[string]any)
+		if !isMap {
+			return fmt.Errorf("%s: params.statusOverride must be a map with percent and code", f.Kind)
+		}
+		return check("params.statusOverride", m)
+	}
 	return nil
+}
+
+// isNumber is true for a YAML number or a string that is one.
+func isNumber(v any) bool {
+	switch t := v.(type) {
+	case int, int64, float64:
+		return true
+	case string:
+		_, err := strconv.ParseFloat(strings.TrimSpace(t), 64)
+		return err == nil
+	default:
+		return false
+	}
 }
 
 func (h httpProxy) Start(ctx context.Context, f scenario.Fault) (Running, error) {
@@ -78,11 +147,10 @@ func startHTTPProxy(_ context.Context, f scenario.Fault) (Running, error) {
 	if err != nil {
 		return nil, fmt.Errorf("upstream: %w", err)
 	}
-	// TODO(strictness): the three ParseDuration calls below discard their errors,
-	// so a malformed value (for example delay: 800, missing the unit) silently
-	// injects nothing. These should fail validation instead. Unknown param keys
-	// for this existing kind stay warnings for now; the point at which they become
-	// errors is deferred and will be revisited.
+	// Validate has already refused a delay, jitter or timeout that is not a
+	// duration (it used to inject nothing), so the errors are not lost here.
+	// Unknown param keys are warnings (ParamKeys, lint.go); when they become
+	// errors is deferred (see TODO(strictness) in fault.go).
 	delay, _ := time.ParseDuration(scenario.StringParam(f.Params, "delay"))
 	jitter, _ := time.ParseDuration(scenario.StringParam(f.Params, "jitter"))
 	stall, _ := time.ParseDuration(scenario.StringParam(f.Params, "timeout"))
@@ -120,6 +188,7 @@ func startHTTPProxy(_ context.Context, f scenario.Fault) (Running, error) {
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if run.armed.Load() {
+			run.requests.Add(1)
 			if stall > 0 {
 				timer := time.NewTimer(stall)
 				select {
@@ -168,6 +237,7 @@ func startHTTPProxy(_ context.Context, f scenario.Fault) (Running, error) {
 
 type proxyRun struct {
 	armed     atomic.Bool
+	requests  atomic.Int64
 	delay     time.Duration
 	jitter    time.Duration
 	stall     time.Duration
@@ -183,8 +253,9 @@ func (p *proxyRun) Intensity() float64 {
 	}
 	return p.intensity
 }
-func (p *proxyRun) Arm()    { p.armed.Store(true) }
-func (p *proxyRun) Disarm() { p.armed.Store(false) }
+func (p *proxyRun) Requests() int64 { return p.requests.Load() }
+func (p *proxyRun) Arm()            { p.armed.Store(true) }
+func (p *proxyRun) Disarm()         { p.armed.Store(false) }
 func (p *proxyRun) Stop() error {
 	if p.stop != nil {
 		return p.stop()

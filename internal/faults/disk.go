@@ -20,6 +20,8 @@ type diskFill struct{}
 func (diskFill) Name() string { return "disk.fill" }
 func (diskFill) OS() []string { return nil }
 
+func (diskFill) ParamKeys() []string { return []string{"size", "path"} }
+
 func (diskFill) Validate(f scenario.Fault) error {
 	n, err := parseBytes(scenario.StringParam(f.Params, "size"), 16<<20)
 	if err != nil {

@@ -161,6 +161,13 @@ func FromReport(res *report.Result, opt FromReportOptions) []Envelope {
 func BuildFinished(res *report.Result, samples bool) Finished {
 	fin := Finished{Result: *res, Diagnosis: diagnose.Text(res)}
 	fin.Result.Probes = nil
+	// The file a generator was run from is a local path: it stays in
+	// report.json and does not travel with the stream.
+	if res.LoadGenerator != nil {
+		g := *res.LoadGenerator
+		g.Path = ""
+		fin.Result.LoadGenerator = &g
+	}
 	// report.json keeps fault parameters as they were written, credentials
 	// included. The stream never does.
 	fin.Result.FaultLog = redactFaultLog(res.FaultLog)

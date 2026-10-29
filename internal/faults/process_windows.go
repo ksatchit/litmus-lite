@@ -12,8 +12,9 @@ import (
 
 type processPause struct{}
 
-func (processPause) Name() string { return "process.pause" }
-func (processPause) OS() []string { return []string{"linux", "darwin"} }
+func (processPause) Name() string        { return "process.pause" }
+func (processPause) OS() []string        { return []string{"linux", "darwin"} }
+func (processPause) ParamKeys() []string { return []string{"pid", "command"} }
 func (processPause) Validate(scenario.Fault) error {
 	return fmt.Errorf("process.pause is not supported on %s", runtime.GOOS)
 }
@@ -23,8 +24,9 @@ func (processPause) Start(context.Context, scenario.Fault) (Running, error) {
 
 type processKill struct{}
 
-func (processKill) Name() string { return "process.kill" }
-func (processKill) OS() []string { return []string{"linux", "darwin"} }
+func (processKill) Name() string        { return "process.kill" }
+func (processKill) OS() []string        { return []string{"linux", "darwin"} }
+func (processKill) ParamKeys() []string { return []string{"pid", "command", "sigkillAfter"} }
 func (processKill) Validate(scenario.Fault) error {
 	return fmt.Errorf("process.kill is not supported on %s", runtime.GOOS)
 }

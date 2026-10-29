@@ -41,6 +41,13 @@ func RenderHTML(res *Result) string {
 	for _, w := range res.Warnings {
 		fmt.Fprintf(&b, `<p class="callout warn">%s</p>`, html.EscapeString(w))
 	}
+	if g := res.LoadGenerator; g != nil {
+		name := g.Tool
+		if g.Version != "" {
+			name += " " + g.Version
+		}
+		fmt.Fprintf(&b, `<p class="meta">load generator: %s</p>`, html.EscapeString(name))
+	}
 
 	if len(res.TimeSeries) > 0 {
 		b.WriteString(`<section><h2>Fault vs impact</h2>`)

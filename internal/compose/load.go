@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
+	"github.com/ksatchit/litmus-lite/internal/report"
 	"github.com/ksatchit/litmus-lite/internal/scenario"
 )
 
@@ -28,6 +28,9 @@ type Output struct {
 	Raw    json.RawMessage
 	Series []LoadPoint
 	Warn   string
+	// Generator records which binary ran (tool, version, path, how it was
+	// found). Nil when none was found.
+	Generator *report.LoadGenerator
 }
 
 // Active reports whether the load block should exec a generator.
@@ -62,76 +65,33 @@ func RunWith(ctx context.Context, binOverride, baseDir string, load *scenario.Lo
 	if tool == "" {
 		tool = "vegaload"
 	}
+	var run func(context.Context, string, string, *scenario.LoadSpec, RunOptions) (Output, error)
 	switch tool {
 	case "vegaload":
-		return runVegaLoad(ctx, binOverride, baseDir, load, opts)
+		run = runVegaLoad
 	case "k6":
-		return runK6(ctx, binOverride, baseDir, load, opts)
+		run = runK6
 	case "command":
-		return runCommand(ctx, binOverride, baseDir, load, opts)
+		run = runCommand
 	default:
 		return Output{}, fmt.Errorf("unknown load tool %q (want vegaload, k6, or command)", tool)
 	}
-}
-
-// BinaryStatus reports whether the generator named by load is executable.
-func BinaryStatus(baseDir string, load *scenario.LoadSpec) (name, message string, found bool) {
-	if load == nil {
-		return "", "", false
+	// Which copy will run, and whether another one looks better, is recorded
+	// with the run: several copies of a tool on one machine are common.
+	st := Inspect(ctx, baseDir, load, binOverride)
+	out, err := run(ctx, binOverride, baseDir, load, opts)
+	if out.Generator == nil {
+		out.Generator = st.Generator()
 	}
-	tool := strings.ToLower(strings.TrimSpace(load.Tool))
-	if tool == "" {
-		tool = "vegaload"
+	if st.Warn != "" {
+		out.Warn = joinNotes(out.Warn, st.Warn)
 	}
-	bin := tool
-	if tool == "command" {
-		bin = strings.TrimSpace(load.Command)
-	}
-	if _, err := resolveBin(baseDir, bin, ""); err != nil {
-		return tool, fmt.Sprintf("%s not found; load: will run chaos only", bin), false
-	}
-	return tool, bin + " found", true
+	return out, err
 }
 
 func resolveBin(baseDir, name, override string) (string, error) {
-	if override != "" {
-		if _, err := os.Stat(override); err != nil {
-			return "", err
-		}
-		return override, nil
-	}
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return "", fmt.Errorf("empty load command")
-	}
-	if strings.ContainsAny(name, `/\`) || strings.HasPrefix(name, ".") {
-		cand := name
-		if !filepath.IsAbs(name) && baseDir != "" {
-			cand = filepath.Join(baseDir, name)
-		}
-		if st, err := os.Stat(cand); err == nil && !st.IsDir() {
-			return cand, nil
-		}
-		if filepath.IsAbs(name) {
-			return "", fmt.Errorf("%s: not found", name)
-		}
-	}
-	path, err := exec.LookPath(name)
-	if err == nil {
-		return path, nil
-	}
-	// Not on PATH: look next to this executable. A GUI app such as an editor
-	// often starts the MCP server with a short PATH, and two tools installed
-	// into one folder should find each other either way.
-	if dir := executableDir(); dir != "" && !strings.ContainsAny(name, `/\`) {
-		for _, cand := range []string{name, name + ".exe"} {
-			p := filepath.Join(dir, cand)
-			if st, serr := os.Stat(p); serr == nil && !st.IsDir() {
-				return p, nil
-			}
-		}
-	}
-	return "", err
+	path, _, err := locate(baseDir, name, override)
+	return path, err
 }
 
 // executableDir is the folder of the running litmus-lite binary. It is a
