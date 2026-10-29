@@ -2,11 +2,11 @@
 
 A terminal walkthrough of the HTTP and process faults against a small app with two processes, [LaunchPad](https://github.com/umamukkara/launchpad): `missioncontrol` (REST on `:8080`) talks to `engine` (gRPC on `:7070`). It takes 12 to 18 minutes with both repositories cloned. Nothing here needs a load generator or Prometheus.
 
-If you only want to see litmus-lite work, the [README quick start](../../README.md#quick-start-one-green-run-one-red-run) needs nothing but the sample service in this repository. Related walkthroughs: [with an agent](with-an-agent.md), [load and chaos](load-and-chaos.md), [failpoints](failpoints.md). What each fault does: [fault catalog](fault-catalog.md).
+If you only want to see litmus-lite work, the [quick start](../getting-started/quick-start.md) needs nothing but the sample service in this repository. Related walkthroughs: [with an agent](agent-walkthrough.md), [load and chaos](load-and-chaos.md), [failpoints](failpoints.md). What each fault does: [fault reference](../reference/faults.md).
 
 ## 0. Prepare
 
-You need `litmus-lite` on your `PATH` (see the README), Go 1.22+, and a clone of LaunchPad. In two terminals, from the LaunchPad repository:
+You need `litmus-lite` on your `PATH` ([install](../getting-started/install.md)), Go 1.22+, and a clone of LaunchPad. In two terminals, from the LaunchPad repository:
 
 ```
 go run ./cmd/engine           # terminal A

@@ -16,6 +16,8 @@ hypotheses:
 
 The agent is the quickest way in, not a requirement. The test is the file, in your repository, and it runs the same without the editor, in a terminal or in CI. Every MCP tool runs a command you can type yourself. Cursor is set up by `litmus-lite init`; any other MCP client works the same way (`litmus-lite mcp serve`), and `init -editor claude-code` is there for Claude Code.
 
+**Documentation: [litmuschaos.github.io/litmus-lite](https://litmuschaos.github.io/litmus-lite/)**
+
 Apache-2.0. Status: early. The CLI and the scenario format can still change before 1.0, and [what it does not do](#what-it-does-not-do) is listed below.
 
 ## Install
@@ -34,7 +36,7 @@ The binaries are not signed or notarized. On macOS, a binary downloaded with a b
 
 Five minutes, with Cursor open on a clone of this repository and one terminal for the sample service. You need the binary above and Go 1.22+. The sample service, `cashier`, lives in the repository. Nothing else is needed: no load generator, no Docker, no network service, and nothing leaves your machine.
 
-`cashier` is a tiny HTTP service with a `GET /charge` route. It is healthy until a scenario arms a named failpoint in it ([walkthrough](docs/cookbooks/failpoints.md)).
+`cashier` is a tiny HTTP service with a `GET /charge` route. It is healthy until a scenario arms a named failpoint in it ([walkthrough](https://litmuschaos.github.io/litmus-lite/guides/failpoints/)).
 
 **1. Start the sample service** (terminal):
 
@@ -117,7 +119,7 @@ Hypothesis charge survives its own outage failed: error_rate < 5% (observed 100.
 
 Exit codes: `0` passed, `3` ran and a hypothesis failed, `1` the scenario or the run could not proceed, `2` a usage error or a refusal by the safety rules, `130` interrupted (every fault is rolled back first).
 
-**Write your own by hand.** `litmus-lite hub list` shows the fault templates; `litmus-lite new -beside ./chaos -kind http.latency -name checkout-slow` writes one next to your service, ready to edit. The page [How a run is judged](docs/hypotheses.md) says exactly what probes, modes, units and hypotheses mean.
+**Write your own by hand.** `litmus-lite hub list` shows the fault templates; `litmus-lite new -beside ./chaos -kind http.latency -name checkout-slow` writes one next to your service, ready to edit. The page [How a run is judged](https://litmuschaos.github.io/litmus-lite/concepts/hypotheses/) says exactly what probes, modes, units and hypotheses mean.
 
 ## Working with an agent
 
@@ -145,10 +147,10 @@ Prompts that work, each answered from the hypotheses and the report:
 
 - *Add 800 ms of latency to the API for 12 seconds and tell me whether it copes and how fast it recovers.*
 - *Make the API return 503 for half the requests for 10 seconds and tell me whether errors stay bounded. Validate with strict checking first.*
-- *Now do both at once: send the same traffic through the API while it is being slowed down, and tell me what those users experienced.* (needs a load generator; see [load and chaos](docs/cookbooks/load-and-chaos.md))
+- *Now do both at once: send the same traffic through the API while it is being slowed down, and tell me what those users experienced.* (needs a load generator; see [load and chaos](https://litmuschaos.github.io/litmus-lite/guides/load-and-chaos/))
 - *Compare `baseline.json` and `report.json` and go through steady, inject and recover. Do not invent a score.*
 
-`litmus-lite mcp eval` checks the server against fixtures. The full walkthrough, with a second app, process faults and consent, is [with an agent](docs/cookbooks/with-an-agent.md). [`AGENTS.md`](AGENTS.md) holds the design rules for changes to this repository.
+`litmus-lite mcp eval` checks the server against fixtures. The full walkthrough, with a second app, process faults and consent, is [with an agent](https://litmuschaos.github.io/litmus-lite/guides/agent-walkthrough/). [`AGENTS.md`](AGENTS.md) holds the design rules for changes to this repository.
 
 ## Faults
 
@@ -187,7 +189,7 @@ By default, nothing. litmus-lite has no telemetry and makes no network request o
 | `load.tool` | runs the generator you named; what it sends is its own business |
 | `ci github` | nothing from litmus-lite; the workflow it writes downloads a release from GitHub when your CI runs |
 
-A report, the audit log (`~/.litmus-lite/audit.log`, one line per command) and any recording stay on disk. Details of the live view and the event format: [docs/streaming.md](docs/streaming.md).
+A report, the audit log (`~/.litmus-lite/audit.log`, one line per command) and any recording stay on disk. Details of the live view and the event format: [Streaming](https://litmuschaos.github.io/litmus-lite/reference/streaming/).
 
 ## What it does not do
 
@@ -210,10 +212,14 @@ Read this before you rely on a green run.
 
 ## More
 
-- [Architecture](docs/architecture.md) and [internals](docs/internals.md): the parts, one run, the trust boundaries, and how to add a fault.
-- [How a run is judged](docs/hypotheses.md): probes, modes, units, hypotheses, strict checking, report format.
-- [Cookbooks](docs/cookbooks/): [with an agent](docs/cookbooks/with-an-agent.md), [a two-process app](docs/cookbooks/launchpad.md), [load and chaos](docs/cookbooks/load-and-chaos.md), [failpoints](docs/cookbooks/failpoints.md), and the [fault catalog](docs/cookbooks/fault-catalog.md).
-- [Streaming a run](docs/streaming.md): events, live view, `serve`, replay.
-- [Roadmap](docs/ROADMAP.md): what is deliberately not scheduled.
+The [documentation site](https://litmuschaos.github.io/litmus-lite/) has the full story. Good places to start:
+
+- [Getting started](https://litmuschaos.github.io/litmus-lite/getting-started/): install, the quick start, and your first scenario, each in Cursor and in a terminal.
+- [Working with an agent](https://litmuschaos.github.io/litmus-lite/guides/agent/): set-up, prompts that work, and what a good answer looks like.
+- [How a run works](https://litmuschaos.github.io/litmus-lite/concepts/how-a-run-works/) and [how it is judged](https://litmuschaos.github.io/litmus-lite/concepts/hypotheses/): phases, probes, modes, units and hypotheses.
+- [Faults](https://litmuschaos.github.io/litmus-lite/reference/faults/), [scenario file](https://litmuschaos.github.io/litmus-lite/reference/scenario/), [CLI](https://litmuschaos.github.io/litmus-lite/reference/cli/) and [MCP tools](https://litmuschaos.github.io/litmus-lite/reference/mcp/) reference.
+- [Streaming a run](https://litmuschaos.github.io/litmus-lite/reference/streaming/): events, live view, `serve`, replay.
+- [Architecture](https://litmuschaos.github.io/litmus-lite/contributing/architecture/) and [internals](https://litmuschaos.github.io/litmus-lite/contributing/internals/): the parts, one run, the trust boundaries, and how to add a fault.
+- [Roadmap](https://litmuschaos.github.io/litmus-lite/project/roadmap/): what is deliberately not scheduled.
 - Other commands: `compare BASE CAND` (phase regression between two reports), `move-to -adapter ir|litmus` (export a scenario to another tool's format), `doctor`.
 - [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md) · [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) · [GOVERNANCE.md](GOVERNANCE.md) · [MAINTAINERS.md](MAINTAINERS.md)

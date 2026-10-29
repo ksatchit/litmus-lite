@@ -29,7 +29,7 @@ func cmdCI(args []string) int {
 	fs := flag.NewFlagSet("ci github", flag.ContinueOnError)
 	version := fs.String("version", "", "release tag to install (default: the latest release)")
 	force := fs.Bool("force", false, "overwrite an existing workflow file")
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := parseArgs(fs, args[1:]); err != nil {
 		return 2
 	}
 	tag := strings.TrimSpace(*version)
@@ -107,7 +107,7 @@ func cmdExport(args []string) int {
 	image := fs.String("image", "", "container image that has litmus-lite on its PATH (required)")
 	allow := fs.String("allow-target", "", "comma-separated extra hosts the Job may reach")
 	yes := fs.Bool("yes", false, "pass -yes to the Job (long or destructive runs, Kubernetes service hosts)")
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := parseArgs(fs, args[1:]); err != nil {
 		return 2
 	}
 	if fs.NArg() < 1 {

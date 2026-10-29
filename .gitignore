@@ -3,6 +3,8 @@
 /report.json
 /report.html
 dist/
+/site/
+/.cache/
 .DS_Store
 
 # Local-only internals — never commit

@@ -20,7 +20,7 @@ import (
 // MaxIngestBody is the largest body Receiver accepts.
 const MaxIngestBody = 8 << 20
 
-// Receiver is the reference push receiver (docs/streaming.md, "What an
+// Receiver is the reference push receiver (docs/reference/streaming.md, "What an
 // ingest endpoint must do"). It stores one NDJSON file per run in Dir, in the
 // layout `-stream-file auto` writes, so `serve` can read them.
 //

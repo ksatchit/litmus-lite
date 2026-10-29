@@ -69,7 +69,7 @@ type PushOptions struct {
 }
 
 // PushSink POSTs batches of NDJSON to an ingest endpoint
-// (docs/streaming.md, "Push"). One batch is in flight at a time, so a receiver
+// (docs/reference/streaming.md, "Push"). One batch is in flight at a time, so a receiver
 // sees batches in order, and a retried batch repeats the same sequence range.
 //
 // 2xx acknowledges a batch. Network errors, 408, 429 and 5xx are retried with

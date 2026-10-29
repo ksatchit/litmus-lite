@@ -8,7 +8,7 @@ Three rules the design keeps, and a good way to check an agent is following them
 2. **The CLI works alone.** You can leave the editor and re-run the file in a terminal.
 3. **MCP tools mirror CLI commands.** Each tool runs the same command you can type, and there is no richer agent-only path.
 
-It takes 12 to 16 minutes with an app to test (the walkthrough uses [LaunchPad](https://github.com/umamukkara/launchpad): `missioncontrol` on `:8080`, `engine` on `:7070`) and `init` done once. The terminal version is [launchpad.md](launchpad.md); what each fault does is in the [fault catalog](fault-catalog.md).
+It takes 12 to 16 minutes with an app to test (the walkthrough uses [LaunchPad](https://github.com/umamukkara/launchpad): `missioncontrol` on `:8080`, `engine` on `:7070`) and `init` done once. The terminal version is [the terminal walkthrough](launchpad.md); what each fault does is in the [fault catalog](../reference/faults.md).
 
 ## 0. Set up once
 
@@ -58,7 +58,7 @@ The fault ids are the ones `litmus-lite hub list` prints. `doctor` may warn abou
 litmus-lite init -env LITMUS_LITE_MCP_ALLOW=allow-pid
 ```
 
-then restart the MCP server (reload the window). Without it the call is refused, and the agent should tell you the CLI command to run yourself. See [SECURITY.md](../../SECURITY.md#mcp) for what the gate covers and what it does not (a scenario an agent writes can still contain a `cmd` probe, which `validate` and `run` list before running it).
+then restart the MCP server (reload the window). Without it the call is refused, and the agent should tell you the CLI command to run yourself. See [SECURITY.md](https://github.com/litmuschaos/litmus-lite/blob/main/SECURITY.md#mcp) for what the gate covers and what it does not (a scenario an agent writes can still contain a `cmd` probe, which `validate` and `run` list before running it).
 
 If the agent paused the wrong process, run `kill -CONT PID` and give an explicit PID in the next message.
 
@@ -78,7 +78,7 @@ Co-locate a different fault:
 
 Expect a file on disk with `kind: http.timeout` and probes on `listen`. A timeout shows as a hole in availability, not a clean p95 shift.
 
-With a load generator (only if `vegaload` is on your `PATH`; see [load-and-chaos.md](load-and-chaos.md)):
+With a load generator (only if `vegaload` is on your `PATH`; see [load and chaos](load-and-chaos.md)):
 
 > Validate and run `examples/launchpad/ignite-load.chaos.yaml` with the same `run_test` tool. Diagnose p95 against 800 ms and whether the load's requests per second landed on the overlay.
 

@@ -41,7 +41,7 @@ A gateway that answers `200` with an error page, or a cache that serves stale da
 - An assertion that cannot work is an error when the file is loaded, never a skipped check: a value that is not a string or a list of non-empty strings, a regular expression that does not compile, or a key other than `contains`, `notContains` and `matches`.
 - Probes follow redirects.
 
-A **command probe** (`type: cmd`) runs `sh -c command` and is healthy on exit status 0 and, if `expect.contains` is set, when the output contains that text. It needs `sh`, so it does not run on Windows. `validate` and `run` list every command a scenario runs before they run it, and `validate -output json` returns them as `runsCommands`; see [SECURITY.md](../SECURITY.md).
+A **command probe** (`type: cmd`) runs `sh -c command` and is healthy on exit status 0 and, if `expect.contains` is set, when the output contains that text. It needs `sh`, so it does not run on Windows. `validate` and `run` list every command a scenario runs before they run it, and `validate -output json` returns them as `runsCommands`; see [SECURITY.md](https://github.com/litmuschaos/litmus-lite/blob/main/SECURITY.md).
 
 ## Hypotheses
 

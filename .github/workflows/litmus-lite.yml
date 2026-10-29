@@ -70,7 +70,8 @@ jobs:
         run: |
           LITMUS_LITE_FAILPOINT=charge,charge-slow LITMUS_LITE_FAILPOINT_TOKEN=cashier-demo ./cashier &
           trap 'kill $! 2>/dev/null || true' EXIT
-          for i in $(seq 1 50); do curl -fs localhost:8080/charge >/dev/null && break; sleep 0.2; done
+          for i in $(seq 1 50); do curl -fs 127.0.0.1:8091/healthz >/dev/null && break; sleep 0.2; done
+          curl -fs 127.0.0.1:8091/healthz >/dev/null
           export LITMUS_LITE_LIVE=off
           ./litmus-lite validate -strict examples/cashier/charge.chaos.yaml
           ./litmus-lite run -out green.json examples/cashier/charge.chaos.yaml

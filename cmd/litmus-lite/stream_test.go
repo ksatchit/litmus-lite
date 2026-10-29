@@ -3,23 +3,9 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
 )
-
-func TestReorderFlags(t *testing.T) {
-	got := reorderFlags([]string{"report.json", "-out", "run.ndjson", "-samples", "-label", "a=b"})
-	want := []string{"-out", "run.ndjson", "-samples", "-label", "a=b", "report.json"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("got %v want %v", got, want)
-	}
-	got = reorderFlags([]string{"-speed=5", "a.ndjson", "b.ndjson"})
-	want = []string{"-speed=5", "a.ndjson", "b.ndjson"}
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("got %v want %v", got, want)
-	}
-}
 
 func TestLabelFlag(t *testing.T) {
 	l := labelFlag{}

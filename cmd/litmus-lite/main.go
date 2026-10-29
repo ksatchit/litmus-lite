@@ -120,7 +120,7 @@ func cmdNew(args []string) int {
 	name := fs.String("name", "http-latency", "file stem")
 	kind := fs.String("kind", "http.latency", "hub id to import")
 	out := outputFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseArgs(fs, args); err != nil {
 		return 2
 	}
 	path, err := hub.Import(*kind, *beside, *name)
@@ -144,7 +144,7 @@ func cmdValidate(args []string) int {
 	allowPID := fs.String("allow-pid", "", "comma-separated PIDs process faults may signal")
 	yes := fs.Bool("yes", false, "allow long/destructive runs")
 	strict := fs.Bool("strict", false, strictUsage)
-	if err := fs.Parse(args); err != nil {
+	if err := parseArgs(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() < 1 {
@@ -211,7 +211,7 @@ func lintScenario(sc *scenario.Scenario) []string {
 	out = append(out, faults.Lint(sc)...)
 	if len(sc.Hypotheses) == 0 {
 		out = append(out, "no hypotheses: this run cannot fail, whatever the probes see, so a green result says nothing. "+
-			"Add at least one, for example error_rate or recovery (see docs/hypotheses.md)")
+			"Add at least one, for example error_rate or recovery (see https://litmuschaos.github.io/litmus-lite/concepts/hypotheses/)")
 	}
 	for _, p := range append(append([]scenario.Probe(nil), sc.SteadyState...), sc.Probes...) {
 		out = append(out, probe.Lint(p)...)
@@ -249,7 +249,7 @@ func cmdRun(args []string) int {
 	strict := fs.Bool("strict", false, strictUsage)
 	var sflags runStream
 	sflags.register(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseArgs(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() < 1 {
@@ -358,7 +358,7 @@ func cmdRun(args []string) int {
 func cmdDiagnose(args []string) int {
 	fs := flag.NewFlagSet("diagnose", flag.ContinueOnError)
 	out := outputFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseArgs(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() < 1 {
@@ -388,7 +388,7 @@ func cmdHub(args []string) int {
 	out := outputFlag(fs)
 	beside := fs.String("beside", ".", "import directory")
 	name := fs.String("name", "", "import file stem")
-	if err := fs.Parse(args[1:]); err != nil {
+	if err := parseArgs(fs, args[1:]); err != nil {
 		return 2
 	}
 	cwd, _ := os.Getwd()
@@ -457,7 +457,7 @@ func cmdInit(args []string) int {
 	var envs pushFlag
 	fs.Var(&envs, "env", "set KEY=VALUE in the MCP server's environment (repeatable; KEY= removes it). For example LITMUS_LITE_LIVE_URL=https://live.example, or LITMUS_LITE_CONFIG_DIR=DIR to keep litmus-lite's config elsewhere")
 	_ = outputFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseArgs(fs, args); err != nil {
 		return 2
 	}
 	env, err := parseInitEnv(envs)
@@ -559,7 +559,7 @@ func cmdDoctor(args []string) int {
 	streamInsecure := fs.Bool("stream-insecure", false, "with -stream: allow http:// to a non-loopback host")
 	fix := fs.Bool("fix", false, "write missing Cursor MCP/rules files")
 	out := outputFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseArgs(fs, args); err != nil {
 		return 2
 	}
 	if *fix {
@@ -585,7 +585,7 @@ func cmdDoctor(args []string) int {
 func cmdCompare(args []string) int {
 	fs := flag.NewFlagSet("compare", flag.ContinueOnError)
 	out := outputFlag(fs)
-	if err := fs.Parse(args); err != nil {
+	if err := parseArgs(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() < 2 {
@@ -643,7 +643,7 @@ func cmdMoveTo(args []string) int {
 	adapter := fs.String("adapter", "ir", "ir|litmus")
 	out := outputFlag(fs)
 	outPath := fs.String("out", "", "optional file to write (stdout always)")
-	if err := fs.Parse(args); err != nil {
+	if err := parseArgs(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() < 1 {

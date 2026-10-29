@@ -1,0 +1,33 @@
+:root {
+  --md-primary-fg-color: #5b44ba;
+  --md-primary-fg-color--light: #858cdd;
+  --md-primary-fg-color--dark: #3f2d8f;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #4a3799;
+}
+
+/* The home page hero. */
+.ll-hero {
+  padding: 1.2rem 0 0.4rem;
+}
+.ll-hero h1 {
+  margin-bottom: 0.4rem;
+  font-weight: 700;
+}
+.ll-hero .ll-tagline {
+  font-size: 1.15rem;
+  opacity: 0.85;
+  margin-top: 0;
+}
+
+/* A prompt to paste into an agent chat. */
+.ll-prompt {
+  border-left: 0.25rem solid var(--md-accent-fg-color);
+  padding: 0.4rem 0.9rem;
+  margin: 1rem 0;
+  background: var(--md-code-bg-color);
+  border-radius: 0.2rem;
+  font-style: italic;
+}

@@ -171,7 +171,7 @@ A checklist. A change that follows it should be reviewable without a conversatio
 4. **Tests next to the code**: a `Validate` table, a start-and-stop test that proves the system is restored, and the failure of `Start` leaving nothing. Run `go test -race`.
 5. **Platform**: if it is OS-specific, use build-tagged files, set `OS()`, and run `GOOS=windows go vet ./...` and `GOOS=linux go vet ./...`.
 6. **A hub template** in `internal/hub/hub.go` if it is a common starting point. It must have hypotheses (`TestShippedScenariosHaveNoWarnings` fails without them) and use only addresses in the safe set.
-7. **Docs**: a row in the faults table in `README.md`, an entry in [`cookbooks/fault-catalog.md`](cookbooks/fault-catalog.md), and, if it adds anything the format has not seen, [hypotheses.md](hypotheses.md).
+7. **Docs**: a row in the faults table in `README.md`, a section in [the fault reference](../reference/faults.md) (`docs/reference/faults.md`), and, if it adds anything the format has not seen, [hypotheses.md](../concepts/hypotheses.md).
 8. **MCP and move-to**: nothing to do for MCP (it runs the CLI). For `move-to`, add the mapping to the IR only if the fault has a neutral equivalent.
 9. **Verify**: `gofmt -l .`, `go vet ./...`, `go test -race -count=1 ./...`. Then deliberately break your implementation, for example by making `Stop` a no-op, and confirm a test fails. A test that cannot fail does not protect anything.
 

@@ -2,7 +2,7 @@
 
 [LaunchPad](https://github.com/umamukkara/launchpad) is a small two-process app used as a sample target: `missioncontrol` (REST `:8080`) talks to `engine` (gRPC `:7070`).
 
-Walkthroughs: [terminal](../../docs/cookbooks/launchpad.md) · [with an agent](../../docs/cookbooks/with-an-agent.md) · [with a load generator](../../docs/cookbooks/load-and-chaos.md).
+Walkthroughs: [terminal](https://litmuschaos.github.io/litmus-lite/guides/launchpad/) · [with an agent](https://litmuschaos.github.io/litmus-lite/guides/agent-walkthrough/) · [with a load generator](https://litmuschaos.github.io/litmus-lite/guides/load-and-chaos/).
 
 ## Files
 

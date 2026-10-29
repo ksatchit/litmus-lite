@@ -1,0 +1,143 @@
+site_name: litmus-lite
+site_description: Chaos testing you can ask for in Cursor or run from a terminal. One binary, scenarios as files, hypotheses instead of thresholds.
+site_url: https://litmuschaos.github.io/litmus-lite/
+repo_url: https://github.com/litmuschaos/litmus-lite
+repo_name: litmuschaos/litmus-lite
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; The litmus-lite authors. Apache-2.0.
+
+# A file under docs/ that git ignores never reaches the site, even when the
+# site is built from a working copy.
+hooks:
+  - .mkdocs/hooks.py
+
+plugins:
+  - search
+  # Fonts and other third-party assets are downloaded at build time and served
+  # from the site, so a reader's browser contacts no one else.
+  - privacy
+
+theme:
+  name: material
+  icon:
+    logo: material/flask-outline
+    repo: fontawesome/brands/github
+  favicon: assets/favicon.svg
+  font:
+    text: Inter
+    code: JetBrains Mono
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - navigation.instant
+    - navigation.tracking
+    - toc.follow
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.action.edit
+
+extra_css:
+  - assets/extra.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - def_list
+  - footnotes
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.snippets:
+      # Example scenarios are included from examples/ so the docs show the
+      # files that ship, and a renamed file breaks the build.
+      base_path: ["."]
+      check_paths: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+
+validation:
+  nav:
+    omitted_files: info
+  links:
+    not_found: warn
+    anchors: warn
+
+nav:
+  - Home: index.md
+  - Getting started:
+      - getting-started/index.md
+      - Install: getting-started/install.md
+      - Quick start: getting-started/quick-start.md
+      - Your first scenario: getting-started/first-scenario.md
+  - Concepts:
+      - concepts/index.md
+      - How a run works: concepts/how-a-run-works.md
+      - How a run is judged: concepts/hypotheses.md
+      - Safety model: concepts/safety.md
+  - Guides:
+      - guides/index.md
+      - Working with an agent: guides/agent.md
+      - HTTP faults: guides/http-faults.md
+      - Processes and containers: guides/processes-and-containers.md
+      - CPU, memory and disk: guides/resources.md
+      - Failpoints in your code: guides/failpoints.md
+      - Load and chaos together: guides/load-and-chaos.md
+      - Reports, diagnose and compare: guides/reports.md
+      - Chaos in CI: guides/ci.md
+      - Export to other tools: guides/export.md
+      - "Walkthrough: a two-process app": guides/launchpad.md
+      - "Walkthrough: an agent session": guides/agent-walkthrough.md
+  - Reference:
+      - reference/index.md
+      - Scenario format: reference/scenario.md
+      - Faults: reference/faults.md
+      - CLI: reference/cli.md
+      - MCP tools: reference/mcp.md
+      - Report and exit codes: reference/report.md
+      - Environment variables: reference/environment.md
+      - Streaming and live view: reference/streaming.md
+  - Contributing:
+      - contributing/index.md
+      - Architecture: contributing/architecture.md
+      - Internals: contributing/internals.md
+  - Project:
+      - project/index.md
+      - Troubleshooting and FAQ: project/faq.md
+      - Roadmap: project/roadmap.md

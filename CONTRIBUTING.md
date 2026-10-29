@@ -6,7 +6,7 @@ Thank you for helping. litmus-lite is small on purpose, so a change that makes i
 
 - For anything bigger than a bug fix or a doc change, open an issue first and say what you want to do, so nobody builds something that cannot be merged.
 - Read [`AGENTS.md`](AGENTS.md). It is written for AI coding agents but it is the plain statement of the design rules for everyone: scenarios are files, the CLI always works alone, MCP tools mirror CLI commands, and the engine, faults, probes, report, MCP and streaming code keep to their module boundaries.
-- Read [How a run is judged](docs/hypotheses.md). A change that alters what a hypothesis or a probe means is a behaviour change and needs a release note.
+- Read [How a run is judged](docs/concepts/hypotheses.md). A change that alters what a hypothesis or a probe means is a behaviour change and needs a release note.
 - Security problems: do not open an issue. See [SECURITY.md](SECURITY.md).
 
 ## Build and test

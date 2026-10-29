@@ -1,6 +1,6 @@
 # Stream fixtures
 
-Recorded event streams for building and testing a consumer. The event format is described in [`../../streaming.md`](../../streaming.md) and by [`../schema/v1.json`](../schema/v1.json).
+Recorded event streams for building and testing a consumer. The event format is described in [`../../streaming.md`](../../reference/streaming.md) and by [`../schema/v1.json`](../schema/v1.json).
 
 | Fixture | What it shows |
 | --- | --- |

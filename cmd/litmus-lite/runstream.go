@@ -24,7 +24,7 @@ func (p *pushFlag) Set(v string) error {
 	return nil
 }
 
-// runStream holds the streaming flags of `run` (docs/streaming.md). All of
+// runStream holds the streaming flags of `run` (docs/reference/streaming.md). All of
 // them are optional: with none set, `run` behaves as it always has.
 type runStream struct {
 	file       string

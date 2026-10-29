@@ -4,7 +4,7 @@
 // It is dormant until a destination is configured: nothing is sent, no browser
 // is opened and no file is written on a machine that never configured one. A
 // destination is the address of a live-view service that speaks the ingest and
-// project-page protocol of docs/streaming.md, given by -live-url, by
+// project-page protocol of docs/reference/streaming.md, given by -live-url, by
 // LITMUS_LITE_LIVE_URL, or kept by `litmus-lite live enable URL`.
 //
 // Once there is one, the first use makes an identity on this machine: a
@@ -14,7 +14,7 @@
 //
 // The identity is kept in the user's config directory (mode 0600), never in a
 // scenario file, a report, the audit log or any event. The token is sent only
-// as a bearer token to the live-view service. See docs/streaming.md, "Live view".
+// as a bearer token to the live-view service. See docs/reference/streaming.md, "Live view".
 package live
 
 import (

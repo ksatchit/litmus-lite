@@ -22,7 +22,7 @@ func cmdLive(args []string) int {
 	fs := flag.NewFlagSet("live", flag.ContinueOnError)
 	open := fs.Bool("open", false, "open the project page in the browser")
 	url := fs.String("live-url", "", "live-view service (also LITMUS_LITE_LIVE_URL, or `live enable URL`)")
-	if err := fs.Parse(args); err != nil {
+	if err := parseArgs(fs, args); err != nil {
 		return 2
 	}
 	sub := ""
@@ -61,7 +61,7 @@ func cmdLive(args []string) int {
 		return 2
 	}
 	if base == nil {
-		fmt.Fprintln(os.Stderr, "live: the live view is not set up, so nothing is sent anywhere. To use a live-view service: `litmus-lite live enable URL`, or set LITMUS_LITE_LIVE_URL, or pass -live-url to `run` (docs/streaming.md, \"Live view\").")
+		fmt.Fprintln(os.Stderr, "live: the live view is not set up, so nothing is sent anywhere. To use a live-view service: `litmus-lite live enable URL`, or set LITMUS_LITE_LIVE_URL, or pass -live-url to `run` (docs/reference/streaming.md, \"Live view\").")
 		return 1
 	}
 

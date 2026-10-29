@@ -1,6 +1,6 @@
 # Walkthrough: failpoints in your own code (cashier)
 
-A CLI walkthrough that needs no load generator, Prometheus or other app. It uses **cashier**, a small Go service in this repository that imports the failpoint package (`failpoint`, Go). It takes about 10 minutes; the run of the error hook itself is about 15 seconds (3 s steady, 8 s fault, 4 s recover). Works on macOS, Linux and Windows with Go 1.22+. The shortest path is the [README quick start](../../README.md#quick-start-one-green-run-one-red-run), which runs the scenarios below.
+A CLI walkthrough that needs no load generator, Prometheus or other app. It uses **cashier**, a small Go service in this repository that imports the failpoint package (`failpoint`, Go). It takes about 10 minutes; the run of the error hook itself is about 15 seconds (3 s steady, 8 s fault, 4 s recover). Works on macOS, Linux and Windows with Go 1.22+. The shortest path is the [quick start](../getting-started/quick-start.md), which runs the scenarios below.
 
 ## What this is
 
@@ -126,7 +126,7 @@ The files already exist; the agent runs them and does not invent a second tool.
 
 > Using the litmus-lite MCP tools only: validate and run `examples/cashier/charge.chaos.yaml`. Cashier is already listening on 127.0.0.1:8091. Do not create a new scenario. After the run, diagnose `report.json`: did hook `charge` land (error rate in the fault window well above 50%), and did recovery bring `/charge` back? Probe p95 is not the landing signal for kind `failpoint`.
 
-If the agent arms the hook by calling the control route with `armed:true` before `run`, stop it: that burns the steady band. See [with-an-agent.md](with-an-agent.md).
+If the agent arms the hook by calling the control route with `armed:true` before `run`, stop it: that burns the steady band. See the [agent walkthrough](agent-walkthrough.md).
 
 ## When it does not look right
 

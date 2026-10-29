@@ -217,7 +217,7 @@ func toolDefs() []map[string]any {
 // caller chooses and that go in a positional place (a file, an id) come after
 // "--", so one that starts with "-" is a file name and never a flag: a tool
 // call cannot add a flag that the tool does not declare (for example
-// -stream-insecure, which docs/streaming.md says no tool call can set).
+// -stream-insecure, which docs/reference/streaming.md says no tool call can set).
 func cliArgs(name string, args map[string]any) ([]string, error) {
 	str := func(k, def string) string {
 		if args == nil {

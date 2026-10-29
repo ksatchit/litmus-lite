@@ -7,13 +7,17 @@ import (
 	"testing"
 )
 
-// The README and the cookbooks tell a reader to run files by path. A rename
+// The README and the docs site tell a reader to run files by path. A rename
 // that leaves one of those paths behind sends a stranger's first five minutes
 // into "no such file", so every examples/ path the docs mention must exist.
 func TestDocsNameExamplesThatExist(t *testing.T) {
 	root := filepath.Join("..", "..")
 	docs := []string{"README.md", "SECURITY.md", "CONTRIBUTING.md"}
-	more, _ := filepath.Glob(filepath.Join(root, "docs", "cookbooks", "*.md"))
+	more := []string{filepath.Join(root, "docs", "index.md")}
+	for _, section := range []string{"getting-started", "concepts", "guides", "reference", "contributing", "project"} {
+		pages, _ := filepath.Glob(filepath.Join(root, "docs", section, "*.md"))
+		more = append(more, pages...)
+	}
 	for _, d := range docs {
 		more = append(more, filepath.Join(root, d))
 	}

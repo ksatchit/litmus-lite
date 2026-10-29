@@ -56,4 +56,4 @@ These are known and not fixed. They are listed so you can decide whether they ma
 
 ## Telemetry
 
-None. See "What leaves your machine" in the [README](README.md) and [docs/streaming.md](docs/streaming.md).
+None. See "What leaves your machine" in the [README](README.md) and [docs/reference/streaming.md](docs/reference/streaming.md).

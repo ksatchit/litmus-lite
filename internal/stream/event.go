@@ -1,7 +1,7 @@
 // Package stream defines the litmus-lite run event stream: the event format,
 // recording files (NDJSON), and the HTTP surface that serves recordings.
 //
-// The format is documented in docs/streaming.md and described by
+// The format is documented in docs/reference/streaming.md and described by
 // docs/stream/schema/v1.json. This package has no dependency on the engine.
 package stream
 

@@ -48,7 +48,7 @@ Copy `report.json` if you want to `compare` it against a chaos-only run: more tr
 
 > VegaLoad is on PATH. Using the litmus-lite MCP tools only: validate and run `examples/launchpad/ignite-load.chaos.yaml`. Do not invent a second tool. After the run, diagnose whether probe p95 tracked the 800 ms delay and whether load requests per second are on the overlay. If vegaload is missing, say so and continue chaos-only.
 
-It should call `validate_scenario` and `run_test` on the same file; the warning in the output, if the generator failed, should not be hidden. See [with-an-agent.md](with-an-agent.md).
+It should call `validate_scenario` and `run_test` on the same file; the warning in the output, if the generator failed, should not be hidden. See the [agent walkthrough](agent-walkthrough.md).
 
 ## Rules that keep it honest
 

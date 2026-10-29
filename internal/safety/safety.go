@@ -42,7 +42,7 @@ func Check(s *scenario.Scenario, opt Options) error {
 		// sidecar proxy instead. Reaching the proxy from VMs, WSL2, local Kubernetes
 		// or LAN devices is a deferred alternative: a guarded non-loopback bind that
 		// needs -yes, an explicit address and a mandatory allowFrom CIDR list
-		// enforced at accept time. See docs/ROADMAP.md. Revisit this check when
+		// enforced at accept time. See docs/project/roadmap.md. Revisit this check when
 		// either is built.
 		if listen := scenario.StringParam(f.Params, "listen"); listen != "" {
 			if err := hostAllowed(listen, opt); err != nil {

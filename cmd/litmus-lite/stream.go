@@ -52,7 +52,7 @@ func cmdStream(args []string) int {
 }
 
 func streamUsage() {
-	fmt.Fprint(os.Stderr, `stream — run event streams (see docs/streaming.md)
+	fmt.Fprint(os.Stderr, `stream — run event streams (see docs/reference/streaming.md)
 
   stream from-report FILE.json   write a report as an NDJSON event stream (-out, -run-id, -label, -samples)
   stream replay FILE.ndjson...   serve recordings over HTTP/SSE (-stream-pull, -speed, -cors-origin), or push them (-stream-push, -fresh, -run-id)
@@ -69,7 +69,7 @@ func cmdStreamFromReport(args []string) int {
 	samples := fs.Bool("samples", false, "also emit probe.sample events and keep raw samples on run.finished")
 	labels := labelFlag{}
 	fs.Var(labels, "label", "label key=value on every event (repeatable)")
-	if err := fs.Parse(reorderFlags(args)); err != nil {
+	if err := parseArgs(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() != 1 {
@@ -106,7 +106,7 @@ func cmdStreamFromReport(args []string) int {
 
 func cmdStreamValidate(args []string) int {
 	fs := flag.NewFlagSet("stream validate", flag.ContinueOnError)
-	if err := fs.Parse(args); err != nil {
+	if err := parseArgs(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() < 1 {
@@ -141,7 +141,7 @@ func cmdStreamReplay(args []string) int {
 	insecure := fs.Bool("stream-insecure", false, "allow http:// push to a non-loopback host")
 	runID := fs.String("run-id", "", "with -stream-push: push under this run id (one recording only)")
 	fresh := fs.Bool("fresh", false, "with -stream-push: give each recording a new run id, so it can be pushed again")
-	if err := fs.Parse(reorderFlags(args)); err != nil {
+	if err := parseArgs(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() < 1 {
@@ -243,7 +243,7 @@ func cmdStreamReceive(args []string) int {
 	print := fs.Bool("print", false, "echo a line per stored event to stderr")
 	delay := fs.Duration("delay", 0, "wait this long before answering a batch (to test a sender)")
 	failPct := fs.Int("fail-percent", 0, "answer 503 for this percentage of batches (to test a sender)")
-	if err := fs.Parse(reorderFlags(args)); err != nil {
+	if err := parseArgs(fs, args); err != nil {
 		return 2
 	}
 	if *failPct < 0 || *failPct > 100 {
@@ -292,30 +292,6 @@ func cmdStreamReceive(args []string) int {
 		}
 		return 0
 	}
-}
-
-// reorderFlags lets flags appear after positional arguments, which the flag
-// package otherwise treats as the end of the flags. Every flag used by the
-// stream commands takes a value except -samples.
-// boolStreamFlags are the stream flags that take no value.
-var boolStreamFlags = map[string]bool{"samples": true, "print": true, "fresh": true, "stream-insecure": true}
-
-func reorderFlags(args []string) []string {
-	var flags, rest []string
-	for i := 0; i < len(args); i++ {
-		a := args[i]
-		if strings.HasPrefix(a, "-") && a != "-" {
-			flags = append(flags, a)
-			name := strings.TrimLeft(a, "-")
-			if !strings.Contains(name, "=") && !boolStreamFlags[name] && i+1 < len(args) {
-				i++
-				flags = append(flags, args[i])
-			}
-			continue
-		}
-		rest = append(rest, a)
-	}
-	return append(flags, rest...)
 }
 
 // replayPush sends recordings to the push sinks and reports what arrived.
@@ -369,7 +345,7 @@ func cmdServe(args []string) int {
 	listen := fs.String("listen", "127.0.0.1:7070", "address to listen on")
 	cors := fs.String("cors-origin", "", "Access-Control-Allow-Origin value (e.g. http://localhost:5173)")
 	stale := fs.Duration("stale", 2*time.Minute, "report a run with no end that has not been written to for this long as incomplete")
-	if err := fs.Parse(reorderFlags(args)); err != nil {
+	if err := parseArgs(fs, args); err != nil {
 		return 2
 	}
 	if fs.NArg() != 0 {

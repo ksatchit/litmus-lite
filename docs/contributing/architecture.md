@@ -1,6 +1,6 @@
 # Architecture
 
-This is the short version: what the parts are, what happens during a run, what each part is trusted with, and why it is built this way. For the code-level version, with the interfaces and the order of things in the engine, see [internals.md](internals.md). For what a result means, see [How a run is judged](hypotheses.md).
+This is the short version: what the parts are, what happens during a run, what each part is trusted with, and why it is built this way. For the code-level version, with the interfaces and the order of things in the engine, see [internals.md](internals.md). For what a result means, see [How a run is judged](../concepts/hypotheses.md).
 
 ## What it is
 
@@ -130,9 +130,9 @@ flowchart TB
 - A scenario is a request, not a permission. By default it can touch loopback addresses only, and cannot signal a process, kill, fill a disk or run longer than 60 seconds until a person adds the flag that says so.
 - A scenario can run shell commands (`cmd` probes, `load.tool: command`) with your permissions. Nothing sandboxes them. litmus-lite prints every command before it runs, and you are expected to read a scenario you did not write.
 - <a id="the-mcp-gate"></a>An agent cannot grant itself those permissions. The MCP server refuses `yes`, `allow-target` and `allow-pid` unless the person who set the server up named them in `LITMUS_LITE_MCP_ALLOW`.
-- Nothing leaves your machine unless you set it up: a stream destination (`-stream-push`), a live-view service, a pinned hub repository or a Prometheus URL. There is no telemetry. With a live-view service configured, `run` sends the run (not usage data) to it and opens its page; `-no-live`, `LITMUS_LITE_LIVE=off` or `CI` turn that off. Credentials in fault params are never put in events or reports. The list is in [the README](../README.md#what-leaves-your-machine).
+- Nothing leaves your machine unless you set it up: a stream destination (`-stream-push`), a live-view service, a pinned hub repository or a Prometheus URL. There is no telemetry. With a live-view service configured, `run` sends the run (not usage data) to it and opens its page; `-no-live`, `LITMUS_LITE_LIVE=off` or `CI` turn that off. Credentials in fault params are never put in events or reports. The list is in [Safety](../concepts/safety.md#what-leaves-your-machine).
 
-More: [SECURITY.md](../SECURITY.md).
+More: [SECURITY.md](https://github.com/litmuschaos/litmus-lite/blob/main/SECURITY.md).
 
 ## Why it is built this way
 

@@ -2,7 +2,7 @@
 
 Small Go service for the failpoint example and the README quick start. One route, `GET /charge`, calls `failpoint.Delay` and `failpoint.Fail`. Both stay dark until a scenario arms them.
 
-Walkthrough: [failpoints](../../docs/cookbooks/failpoints.md).
+Walkthrough: [failpoints](https://litmuschaos.github.io/litmus-lite/guides/failpoints/).
 
 ```
 export LITMUS_LITE_FAILPOINT=charge,charge-slow
