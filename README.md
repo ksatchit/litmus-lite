@@ -1,6 +1,10 @@
 # litmus-lite
 
-Chaos testing from a YAML file, for a laptop or a CI job. You describe a failure, what healthy looks like and what must stay true. litmus-lite injects the failure, samples your service, judges the run and writes one self-contained HTML report. It is a single binary. There is no control plane, no cluster and no account.
+Chaos testing you ask for in [Cursor](https://cursor.com). Tell the agent what should break and what must stay true:
+
+> Add 800 ms of latency to the checkout API for 12 seconds and tell me whether it copes and how fast it recovers.
+
+The agent writes the scenario as a `*.chaos.yaml` file next to your service, validates it, runs it through litmus-lite's MCP tools, and answers in terms of the hypotheses it wrote: which held, which did not, and how long recovery took. litmus-lite injects the failure, samples your service, judges the run and writes one self-contained HTML report. It is a single binary. There is no control plane, no cluster and no account.
 
 ```yaml
 faults:
@@ -10,7 +14,7 @@ hypotheses:
   - { name: recovers, metric: recovery, operator: "<=", value: 5s }
 ```
 
-Scenarios are ordinary files (`*.chaos.yaml`) that you keep next to the service they test. An AI agent can write and run them through [MCP](#use-it-from-an-agent), but nothing needs one: every command works from a terminal.
+The agent is the quickest way in, not a requirement. The test is the file, in your repository, and it runs the same without the editor, in a terminal or in CI. Every MCP tool runs a command you can type yourself. Cursor is set up by `litmus-lite init`; any other MCP client works the same way (`litmus-lite mcp serve`), and `init -editor claude-code` is there for Claude Code.
 
 Apache-2.0. Status: early. The CLI and the scenario format can still change before 1.0, and [what it does not do](#what-it-does-not-do) is listed below.
 
@@ -28,18 +32,48 @@ The binaries are not signed or notarized. On macOS, a binary downloaded with a b
 
 ## Quick start: one green run, one red run
 
-Five minutes, one terminal tab for the sample service and one for litmus-lite. You need the binary above, Go 1.22+ and a clone of this repository, because the sample service, `cashier`, lives in it. Nothing else is needed: no load generator, no Docker, no network service, and nothing leaves your machine.
+Five minutes, with Cursor open on a clone of this repository and one terminal for the sample service. You need the binary above and Go 1.22+. The sample service, `cashier`, lives in the repository. Nothing else is needed: no load generator, no Docker, no network service, and nothing leaves your machine.
 
 `cashier` is a tiny HTTP service with a `GET /charge` route. It is healthy until a scenario arms a named failpoint in it ([walkthrough](docs/cookbooks/failpoints.md)).
 
-**1. Start the sample service** (tab 1):
+**1. Start the sample service** (terminal):
 
 ```
 git clone https://github.com/litmuschaos/litmus-lite && cd litmus-lite
 LITMUS_LITE_FAILPOINT=charge,charge-slow LITMUS_LITE_FAILPOINT_TOKEN=cashier-demo go run ./examples/cashier
 ```
 
-**2. Check the first scenario** (tab 2, in the same clone):
+**2. Connect Cursor** (a second terminal, in the same clone):
+
+```
+litmus-lite init
+```
+
+This adds `litmus-lite mcp serve` to `.cursor/mcp.json` and writes a rule, `.cursor/rules/litmus-lite.mdc`, that tells the agent the conventions: scenarios are files, probes go through the proxy, and the safety flags are yours to give. It also writes a `.mcp.json`, which Claude Code reads. Open the folder in Cursor, go to Settings > Tools & MCP, and check that `litmus-lite` is on (toggle it, or reload the window, if it is not listed). Start a new Agent chat.
+
+**3. The green run.** Paste:
+
+> Using the litmus-lite tools, validate `examples/cashier/charge.chaos.yaml` with strict checking, run it, and tell me whether the failure landed and whether the service recovered.
+
+The agent calls `validate_scenario` and `run_test`, then answers from the two hypotheses in the file: the failure really landed (`hook-landed`: errors above 50% while the charge step fails for 8 seconds) and the service recovers within 5 seconds (`recovers`). The run passes. `report.json` and `report.html` are written in the project folder; open `report.html` for the probes' latency and error rate through the baseline, the fault and the recovery.
+
+**4. The red run.** Paste:
+
+> Now run `examples/cashier/charge-must-survive.chaos.yaml` and tell me why it failed.
+
+It injects the same failure but asks for something `cashier` does not do: keep errors under 5% while charging is down, as a service with a fallback would. The run finishes and a hypothesis does not hold, which is a finding and not a tool error; the agent gets the result the same way as for a pass, and calls `diagnose_failure`. Expect it to say `charge survives its own outage` failed, with an error rate near 100%.
+
+**5. Ask for your own.** Paste:
+
+> Add 800 ms of latency to the cashier's `/charge` route for 12 seconds and tell me whether it copes and how fast it recovers.
+
+Expect a new `*.chaos.yaml` beside the service, validated, run and judged against hypotheses the agent chose, with the probes pointed at the proxy's listen address and not at the service. Read the file: it is the test. Keep it, commit it, change a number, and run it again without the agent. If the agent only describes a scenario, tell it to write the file. [Working with an agent](#working-with-an-agent) has more prompts and what to expect.
+
+### The same by hand
+
+Everything above is the CLI underneath, so you can do it without Cursor. In the second terminal, in the same clone:
+
+**Check the first scenario.**
 
 ```
 litmus-lite validate -strict examples/cashier/charge.chaos.yaml
@@ -47,7 +81,7 @@ litmus-lite validate -strict examples/cashier/charge.chaos.yaml
 
 It prints `valid`. `validate` reads the file, applies the safety rules and warns about keys nothing reads, without touching anything.
 
-**3. The green run.** The scenario makes the charge step fail for 8 seconds and says what must be true: the failure really landed (errors above 50%) and the service recovers within 5 seconds.
+**The green run.**
 
 ```
 litmus-lite run examples/cashier/charge.chaos.yaml
@@ -57,9 +91,9 @@ litmus-lite run examples/cashier/charge.chaos.yaml
 cashier-charge passed=true hypotheses=2 report=report.json html=report.html
 ```
 
-The exit code is 0. Open `report.html`: it shows the probes' latency and error rate through the baseline, the fault and the recovery.
+The exit code is 0.
 
-**4. The red run.** The second scenario injects the same failure but asks for something `cashier` does not do: keep errors under 5% while charging is down, as a service with a fallback would.
+**The red run.**
 
 ```
 litmus-lite run -out red.json examples/cashier/charge-must-survive.chaos.yaml
@@ -69,7 +103,7 @@ litmus-lite run -out red.json examples/cashier/charge-must-survive.chaos.yaml
 cashier-charge-must-survive passed=false hypotheses=2 report=red.json html=red.html
 ```
 
-The exit code is 3, which means "the run finished and a hypothesis did not hold". That is a finding, not a tool failure. Ask what it found:
+The exit code is 3, which means "the run finished and a hypothesis did not hold". Ask what it found:
 
 ```
 litmus-lite diagnose red.json
@@ -83,7 +117,38 @@ Hypothesis charge survives its own outage failed: error_rate < 5% (observed 100.
 
 Exit codes: `0` passed, `3` ran and a hypothesis failed, `1` the scenario or the run could not proceed, `2` a usage error or a refusal by the safety rules, `130` interrupted (every fault is rolled back first).
 
-**5. Write your own.** `litmus-lite hub list` shows the fault templates; `litmus-lite new -beside ./chaos -kind http.latency -name checkout-slow` writes one next to your service, ready to edit. The page [How a run is judged](docs/hypotheses.md) says exactly what probes, modes, units and hypotheses mean.
+**Write your own by hand.** `litmus-lite hub list` shows the fault templates; `litmus-lite new -beside ./chaos -kind http.latency -name checkout-slow` writes one next to your service, ready to edit. The page [How a run is judged](docs/hypotheses.md) says exactly what probes, modes, units and hypotheses mean.
+
+## Working with an agent
+
+The MCP server is `litmus-lite mcp serve`; each tool runs the CLI command beside it in this table, and there is no agent-only path.
+
+| MCP tool | CLI |
+| --- | --- |
+| `create_scenario` | `new` |
+| `validate_scenario` | `validate` |
+| `run_test` | `run` |
+| `get_results` | read the report JSON |
+| `diagnose_failure` | `diagnose` |
+| `list_faults` | `hub list` |
+| `hub_import` | `hub import` |
+| `compare_reports` | `compare` |
+| `doctor` | `doctor` |
+
+Three rules keep it honest, and they are a good way to check an agent is following them:
+
+1. **A test is a file, never chat state.** Every scenario the agent makes is a `*.chaos.yaml` on disk, beside the service. If it only describes one, ask it to write the file.
+2. **The CLI works alone.** You can leave the editor and run the file in a terminal or in CI.
+3. **The agent cannot consent for you.** `yes`, `allow-target` and `allow-pid` confirm a destructive or out-of-scope action, so the MCP server refuses them unless you enabled them once for the server: `litmus-lite init -env LITMUS_LITE_MCP_ALLOW=allow-pid`, then reload the window. If a call is refused, the agent should tell you, or give you the command to run yourself. See [SECURITY.md](SECURITY.md#mcp).
+
+Prompts that work, each answered from the hypotheses and the report:
+
+- *Add 800 ms of latency to the API for 12 seconds and tell me whether it copes and how fast it recovers.*
+- *Make the API return 503 for half the requests for 10 seconds and tell me whether errors stay bounded. Validate with strict checking first.*
+- *Now do both at once: send the same traffic through the API while it is being slowed down, and tell me what those users experienced.* (needs a load generator; see [load and chaos](docs/cookbooks/load-and-chaos.md))
+- *Compare `baseline.json` and `report.json` and go through steady, inject and recover. Do not invent a score.*
+
+`litmus-lite mcp eval` checks the server against fixtures. The full walkthrough, with a second app, process faults and consent, is [with an agent](docs/cookbooks/with-an-agent.md). [`AGENTS.md`](AGENTS.md) holds the design rules for changes to this repository.
 
 ## Faults
 
@@ -138,10 +203,6 @@ Read this before you rely on a green run.
 - **HTTP faults only touch traffic sent to them.** `http.latency`, `http.status-inject` and `http.timeout` are a proxy in the litmus-lite process: only requests to `listen` are affected, and a probe that calls the service directly sees nothing. `validate` and `run` warn when that happens. The proxy speaks HTTP/1.1 on plain TCP; gRPC and cleartext HTTP/2 are not supported.
 - **A report keeps what a probe URL says.** A failed sample's error text can include the probe's URL, with any query string. Do not put a secret in a probe URL query.
 - **Hypotheses are about one window.** They judge the inject window over all probes together; there is no per-probe or per-route breakdown yet.
-
-## Use it from an agent
-
-`litmus-lite init -editor cursor` registers an MCP server (`litmus-lite mcp serve`) and a rule in your project. Each MCP tool runs the same CLI command you can type, and the scenario the agent writes is a file in your repository. `litmus-lite mcp eval` checks the server against fixtures. [`AGENTS.md`](AGENTS.md) describes the design rules for changes to this repository.
 
 ## In CI
 
