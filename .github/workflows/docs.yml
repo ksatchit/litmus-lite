@@ -25,6 +25,14 @@ concurrency:
   group: docs-${{ github.ref }}
   cancel-in-progress: true
 
+# The site is published on a push to main, and when the workflow is run by hand:
+# from main upstream, or from any branch in a fork (a preview of that branch).
+env:
+  PUBLISH: >-
+    ${{ github.event_name == 'push' ||
+        (github.event_name == 'workflow_dispatch' &&
+         (github.ref == 'refs/heads/main' || github.repository != 'litmuschaos/litmus-lite')) }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -36,15 +44,22 @@ jobs:
           cache: pip
           cache-dependency-path: docs/requirements.txt
       - run: pip install -r docs/requirements.txt
+      - name: Point the site at this repository's Pages address
+        run: |
+          owner=$(printf '%s' "$GITHUB_REPOSITORY_OWNER" | tr '[:upper:]' '[:lower:]')
+          echo "SITE_URL=https://${owner}.github.io/${GITHUB_REPOSITORY#*/}/" >> "$GITHUB_ENV"
       - name: Build (fails on a broken link or a missing example)
         run: mkdocs build --strict
-      - if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+      - if: env.PUBLISH == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
   deploy:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'push' ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.ref == 'refs/heads/main' || github.repository != 'litmuschaos/litmus-lite'))
     needs: build
     runs-on: ubuntu-latest
     permissions:

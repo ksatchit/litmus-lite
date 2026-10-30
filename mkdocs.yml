@@ -1,6 +1,8 @@
 site_name: litmus-lite
 site_description: Chaos testing you can ask for in Cursor or run from a terminal. One binary, scenarios as files, hypotheses instead of thresholds.
-site_url: https://litmuschaos.github.io/litmus-lite/
+# CI sets SITE_URL to the Pages address of the repository that builds it, so a
+# fork publishes a working preview of itself.
+site_url: !ENV [SITE_URL, "https://litmuschaos.github.io/litmus-lite/"]
 repo_url: https://github.com/litmuschaos/litmus-lite
 repo_name: litmuschaos/litmus-lite
 edit_uri: edit/main/docs/
